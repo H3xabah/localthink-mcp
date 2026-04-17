@@ -1350,37 +1350,26 @@ def local_config() -> str:
     if not os.path.exists(gui_script):
         return "[localthink] GUI script not found — reinstall localthink-mcp."
 
-    before = _current_cfg()
-
     try:
-        result = subprocess.run(
-            [sys.executable, gui_script],
-            timeout=300,
-        )
-    except subprocess.TimeoutExpired:
-        return "[localthink] Settings window timed out."
+        kwargs: dict = {}
+        if sys.platform == "win32":
+            # DETACHED_PROCESS + CREATE_NEW_PROCESS_GROUP give the child its
+            # own console session so tkinter can acquire a window handle.
+            # Without these flags the GUI process inherits the MCP stdio pipe
+            # and never renders on Windows.
+            kwargs["creationflags"] = (
+                subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
+            )
+            kwargs["close_fds"] = True
+        subprocess.Popen([sys.executable, gui_script], **kwargs)
     except Exception as e:
         return f"[localthink] Could not open settings GUI: {e}"
 
-    if result.returncode != 0:
-        return "[localthink] Settings cancelled — no changes saved."
-
-    after = _current_cfg()
-
-    changed = {k: after[k] for k in after if after[k] != before.get(k)}
-    if not changed:
-        return "Settings saved (no values changed)."
-
-    from core.config import SCHEMA
-    lines = ["Settings saved. Changed:"]
-    for k, v in changed.items():
-        label = SCHEMA[k]["label"] if k in SCHEMA else k
-        old   = before.get(k, "")
-        lines.append(f"  {label}: {old!r} → {v!r}")
-
-    lines.append("")
-    lines.append("Restart the MCP server for model/URL changes to fully apply.")
-    return "\n".join(lines)
+    return (
+        "Settings window opened — make your changes and click Save.\n"
+        "Timeout/limit/cache/memo changes hot-reload instantly.\n"
+        "Ollama URL and model changes require restarting the MCP server."
+    )
 
 
 def main() -> None:
