@@ -3,6 +3,60 @@
 All notable changes to this project will be documented in this file.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
+## [2.1.0] — 2026-04-16
+
+### Added
+
+**Smart Buffer — raw output never enters context:**
+- `local_gate(raw_output)` — Triage any raw output (test results, build logs, lint dumps) into Pattern + Anomalies + Signal. Always fits in budget. Required first step before injecting raw tool output into Claude's context.
+- `local_slice(file_path, offset_lines)` — Read a window of lines from a file starting at an offset. On-demand raw access when `local_gate` identifies a specific region worth inspecting.
+- `local_diff_semantic(before, after)` — Meaning-level diff of two text blobs. Noise (whitespace, formatting, minor rewording) is suppressed; only semantic changes surface.
+
+**Execution Filters — project tools via local LLM:**
+- `local_run_tests()` — Run the project test suite and return only `{failed, delta, pointer}`. Nothing else enters context.
+- `local_run_lint()` — Run the linter and return violations grouped by rule. Passing rules are suppressed.
+- `local_run_build()` — Run the build and return only root cause + affected symbols.
+
+**Session Scratchpad — stateful decisions as you go:**
+- `local_memo_write(section, content)` — Write to a named section of the in-session scratchpad (`decisions`, `assumptions`, `pitfalls`, `open_questions`). Auto-compacts sections beyond a character threshold.
+- `local_memo_read()` — Read the full scratchpad as a distilled summary. Use to restore context mid-session.
+- `local_memo_checkpoint()` — Freeze the current scratchpad state into a `RESUME_PROMPT` string suitable for pasting after `/clear`.
+
+**Persistent Notes — cross-session model knowledge:**
+- `local_note_write(category, content)` — Write a permanent note to disk under a category (`architecture`, `gotcha`, `pattern`). Persists across all sessions.
+- `local_note_search(query)` — Full-text search across all persisted notes. Use at session start for relevant prior knowledge.
+
+**Response Quality:**
+- `local_refine(prompt, draft, instructions?)` — Post-process an LLM draft through a refinement pass. Optional instructions target specific improvements (tone, brevity, accuracy). Uses the main model.
+
+**Result Cache:**
+- `local_cache_stats()` — Show cache hit/miss stats, entry count, and total disk usage.
+- `local_cache_clear()` — Evict all cached results. Respects `LOCALTHINK_CACHE_DIR`.
+
+**New core modules (`src/localthink_mcp/core/`):**
+- `cache.py` — Disk-backed SHA-256 result cache with file-mtime auto-invalidation and configurable TTL.
+- `memo.py` — Session scratchpad + persistent notes engine.
+- `passes.py` — Multi-pass refinement pipeline (fast draft → main-model refine → verify).
+- `router.py` — Internal model routing logic (DEFAULT vs FAST model selection).
+- `async_batch.py` — Async concurrency layer for `local_batch_answer` and `local_scan_dir`.
+- `structured.py` — Typed output helpers for consistent JSON response shapes.
+
+### Changed
+- `ollama_client.py` — added `generate_fast()`, `list_models()`, `FAST_MODEL` constant
+- `prompts.py` — added system prompts for all v2.1.0 tools
+
+### Configuration
+- `LOCALTHINK_CACHE_DIR` — directory for disk cache (default: OS temp dir)
+- `CACHE_TTL_DAYS` — cache entry TTL in days (default: `7`)
+
+## [1.2.0] — 2026-04-13
+
+### Added
+
+**Pre-injection tools (run before Claude thinks — maximum token savings):**
+- `local_improve_prompt(prompt, context?)` — Rewrite a rough user prompt through the local model to eliminate ambiguity, add structure, and surface hidden assumptions. Claude receives only the sharpened version — it never sees the raw draft. Uses the fast model. Feed the returned text directly as the task.
+- `local_preplan(task, context?, depth?)` — Generate a structured implementation plan locally before Claude spends tokens planning. Returns: goal, assumptions, ordered steps with file/function references, risks & blockers, open questions. `depth` controls verbosity: `"quick"` (3-5 steps), `"standard"` (default, all sections), `"detailed"` (sub-bullets + rationale). Pass the returned plan to Claude as a scaffold to execute rather than starting from scratch.
+
 ## [1.1.0] — 2026-04-13
 
 ### Added

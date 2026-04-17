@@ -5,6 +5,8 @@ Offloads large file queries and document processing to Ollama so they never burn
 
 > v0.1.0 benchmarked at **~30× token savings** on 16 KB file queries.
 > v1.1 adds 13 new tools covering every major token-waste pattern.
+> v1.2 adds **pre-injection**: `local_improve_prompt` and `local_preplan` run locally *before* Claude sees the task — sharpening prompts and scaffolding plans so Claude executes rather than guesses.
+> v2.1 adds **smart buffer**, **execution filters**, **session scratchpad**, **persistent notes**, **response refinement**, and a **disk-backed result cache** — 14 new tools, 44 total.
 
 ---
 
@@ -31,7 +33,7 @@ claude mcp list   # localthink → Connected
 
 ---
 
-## All 16 tools
+## All 44 tools
 
 ### v0.1.0 — Core compression
 
@@ -75,6 +77,35 @@ claude mcp list   # localthink → Connected
 | `local_audit(file_path, checklist)` | Checklist-based file audit: PASS / FAIL / PARTIAL / N/A per item. File never enters Claude's context. |
 | `local_models()` | List local Ollama models and show current DEFAULT / FAST model config. |
 
+### v1.2 — Pre-injection (run before Claude thinks)
+
+These tools run a local model pass *before* Claude engages with a task. Claude never sees the raw input — only the pre-processed output. Eliminates waste at the source rather than compressing after the fact.
+
+| Tool | What it does |
+|------|--------------|
+| `local_improve_prompt(prompt, context?)` | Rewrite a vague or rough prompt into a clear, specific, unambiguous version. Claude receives only the sharpened result. Uses the fast model — minimal overhead. |
+| `local_preplan(task, context?, depth?)` | Generate a structured implementation plan (goal / assumptions / ordered steps / risks / open questions) via local model. Claude executes the scaffold rather than planning from scratch. `depth`: `"quick"` (3-5 steps), `"standard"` (default), `"detailed"` (sub-bullets + rationale). |
+
+**`local_improve_prompt` example:**
+```
+"make the auth faster"
+→ local_improve_prompt(prompt, context="Next.js, JWT, DB bottleneck suspected")
+→ "Optimise JWT validation latency in src/auth/middleware.ts — profile the verify()
+   hot path, remove redundant DB round-trips, target p95 < 5 ms."
+→ Feed that to Claude as the actual task
+```
+
+**`local_preplan` example:**
+```python
+plan = local_preplan(
+  task="add rate limiting to the API",
+  context="Express.js, Redis available, routes in src/routes/",
+  depth="standard"
+)
+# Returns: Goal / Assumptions / Steps with file paths / Risks / Open questions
+# Then: "Execute this plan: <plan>"
+```
+
 ### v1.1 expansion — high-context compression + smart reading
 
 #### High-context compression
@@ -104,6 +135,42 @@ claude mcp list   # localthink → Connected
 |------|--------------|
 | `local_timeline(text)` | Chronological event sequence from logs, changelogs, git log, or incident reports. Deduplicates repeated events. |
 | `local_diff_files(path_a, path_b, focus?)` | Diff two files by path — neither file loaded into context. Counterpart to `local_diff` which takes in-context text. |
+
+### v2.1 — Smart buffer, execution filters, scratchpad, notes, cache
+
+#### Smart Buffer (raw output triage)
+| Tool | What it does |
+|------|--------------|
+| `local_gate(raw_output)` | Triage any raw output (test results, build logs, lint dumps) into Pattern + Anomalies + Signal. Always fits in budget. Use before injecting any raw tool output into context. |
+| `local_slice(file_path, offset_lines)` | Read a window of lines from a file at an offset. On-demand raw access when `local_gate` identifies a region worth inspecting. |
+| `local_diff_semantic(before, after)` | Meaning-level diff — noise (whitespace, formatting, minor rewording) suppressed. Only semantic changes surface. |
+
+#### Execution Filters (project tools → local LLM)
+| Tool | What it does |
+|------|--------------|
+| `local_run_tests()` | Run the project test suite. Returns only `{failed, delta, pointer}`. Nothing else enters context. |
+| `local_run_lint()` | Run the linter. Violations grouped by rule; passing rules suppressed. |
+| `local_run_build()` | Run the build. Returns root cause + affected symbols only. |
+
+#### Session Scratchpad (stateful decisions)
+| Tool | What it does |
+|------|--------------|
+| `local_memo_write(section, content)` | Write to a named scratchpad section: `decisions`, `assumptions`, `pitfalls`, `open_questions`. Auto-compacts beyond threshold. |
+| `local_memo_read()` | Read the full scratchpad as a distilled summary. Restore context mid-session without re-reading files. |
+| `local_memo_checkpoint()` | Freeze scratchpad into a `RESUME_PROMPT` string. Paste after `/clear` to continue with full context. |
+
+#### Persistent Notes (cross-session knowledge)
+| Tool | What it does |
+|------|--------------|
+| `local_note_write(category, content)` | Write a permanent note to disk (`architecture`, `gotcha`, `pattern`). Survives `/clear` and new sessions. |
+| `local_note_search(query)` | Full-text search across all persisted notes. Run at session start to surface relevant prior knowledge. |
+
+#### Response Quality & Cache
+| Tool | What it does |
+|------|--------------|
+| `local_refine(prompt, draft, instructions?)` | Post-process an LLM draft through a refinement pass. Optional instructions target tone, brevity, or accuracy. |
+| `local_cache_stats()` | Show cache hit/miss counts, entry count, and total disk usage. |
+| `local_cache_clear()` | Evict all cached results. |
 
 ---
 
@@ -138,6 +205,21 @@ claude mcp list   # localthink → Connected
 | Need a timeline from a log or changelog | `local_timeline` |
 | Compare two files without loading them | `local_diff_files` |
 | Compare two in-context text blobs | `local_diff` |
+| Prompt is vague — sharpen before sending to Claude | `local_improve_prompt` |
+| Task is large — plan locally before Claude touches it | `local_preplan` |
+| Raw test/build/lint output about to enter context | `local_gate` |
+| `local_gate` flagged a specific region worth reading | `local_slice` |
+| Two text blobs — want only the meaningful diff | `local_diff_semantic` |
+| Run tests without dumping output into context | `local_run_tests` |
+| Run lint without dumping output into context | `local_run_lint` |
+| Run build without dumping output into context | `local_run_build` |
+| Want to record a decision or assumption mid-session | `local_memo_write` |
+| Resuming work, need to restore session context | `local_memo_read` |
+| About to `/clear` — want to resume with full context | `local_memo_checkpoint` |
+| Want to save a pattern or gotcha for future sessions | `local_note_write` |
+| Starting a session — check for relevant prior notes | `local_note_search` |
+| LLM draft needs a quality pass | `local_refine` |
+| Check or clear the result cache | `local_cache_stats` / `local_cache_clear` |
 
 ---
 
@@ -182,6 +264,8 @@ r = local_chat(r["doc"], "Show me the relevant config keys", r["history"])
 | `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama endpoint |
 | `OLLAMA_MODEL` | `qwen2.5:14b-instruct-q4_K_M` | Model for all quality operations |
 | `OLLAMA_FAST_MODEL` | (same as OLLAMA_MODEL) | Lighter model for classify, outline, code_surface on non-Python |
+| `LOCALTHINK_CACHE_DIR` | OS temp dir | Directory for disk-backed result cache |
+| `CACHE_TTL_DAYS` | `7` | Cache entry time-to-live in days |
 
 Smaller fast model example (`qwen2.5:3b` for lightweight ops):
 

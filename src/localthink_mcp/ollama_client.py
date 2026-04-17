@@ -6,6 +6,9 @@ DEFAULT_MODEL = os.environ.get("OLLAMA_MODEL", "qwen2.5:14b-instruct-q4_K_M")
 # OLLAMA_FAST_MODEL: lightweight model for classify/code_surface/outline.
 # Falls back to DEFAULT_MODEL if unset.
 FAST_MODEL = os.environ.get("OLLAMA_FAST_MODEL", "") or DEFAULT_MODEL
+# OLLAMA_TINY_MODEL: optional third tier for trivial tasks (classify, outline, etc.).
+# Falls back to FAST_MODEL if unset.
+TINY_MODEL = os.environ.get("OLLAMA_TINY_MODEL", "") or FAST_MODEL
 
 
 def health_check(timeout: float = 2.0) -> bool:
@@ -35,6 +38,32 @@ def generate(prompt: str, system: str = "", model: str = "", timeout: float = 36
 def generate_fast(prompt: str, system: str = "", timeout: float = 180.0) -> str:
     """Use the fast model for lightweight ops: classify, outline, code_surface (non-Python)."""
     return generate(prompt=prompt, system=system, model=FAST_MODEL, timeout=timeout)
+
+
+def generate_tiny(prompt: str, system: str = "", timeout: float = 60.0) -> str:
+    """Use the tiny model for trivial ops: classify small inputs, outline, schema_infer."""
+    return generate(prompt=prompt, system=system, model=TINY_MODEL, timeout=timeout)
+
+
+def generate_json(prompt: str, system: str = "", model: str = "", timeout: float = 180.0) -> str:
+    """Same as generate() but requests JSON-formatted output via Ollama format=json.
+
+    Ollama guarantees syntactically valid JSON when format='json' is set.
+    Use for tools that must return structured data: classify, schema_infer, etc.
+    """
+    payload: dict = {
+        "model": model or FAST_MODEL,
+        "prompt": prompt,
+        "stream": False,
+        "format": "json",
+    }
+    if system:
+        payload["system"] = system
+
+    with httpx.Client(timeout=timeout) as client:
+        r = client.post(f"{BASE_URL}/api/generate", json=payload)
+        r.raise_for_status()
+        return r.json()["response"]
 
 
 def list_models() -> list[str]:

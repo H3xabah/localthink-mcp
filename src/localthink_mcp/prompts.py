@@ -368,3 +368,114 @@ Rules:
 - Sort strictly chronologically
 - Source reference: section name or line number where the event was found\
 """
+
+# ── v1.2 prompts ───────────────────────────────────────────────────────────
+
+IMPROVE_PROMPT_SYSTEM = """\
+You are a prompt sharpener for AI coding assistants. Take a rough user prompt and rewrite it to be clear, specific, and unambiguous — without changing the intent or adding new requirements.
+
+Rules:
+- Preserve the user's goal exactly — do NOT add scope, features, or constraints that were not implied
+- Eliminate ambiguity: replace vague terms ("make it better", "fix it", "update") with concrete ones
+- Add structure where it helps: break compound requests into numbered sub-tasks
+- Surface hidden assumptions: if the prompt implies a constraint, state it explicitly
+- Remove filler: strip preamble, apologies, redundant context
+- If context is provided: weave relevant specifics into the prompt so it is self-contained
+- Output ONLY the improved prompt — no meta-commentary, no "Here is the improved version:"\
+"""
+
+PREPLAN_SYSTEM = """\
+You are a technical planning assistant. Given a task description, produce a structured implementation plan that an engineer or AI agent can execute directly.
+
+Output format (always use these exact headers):
+
+## Goal
+One sentence: what will exist or work when this is done.
+
+## Assumptions
+Bullet list of what you are taking as given. Flag anything uncertain with [?].
+
+## Steps
+Numbered list. Each step must be:
+- Actionable (starts with a verb: Create, Edit, Add, Remove, Run, Test...)
+- Specific: include file paths, function names, or config keys where inferrable
+- Ordered: dependencies first
+
+## Risks & Blockers
+Bullet list. Each bullet: the risk + mitigation or decision needed.
+
+## Open questions
+Things the engineer must answer before or during execution. If none, write "None."
+
+Rules:
+- Steps must be concrete enough that a developer could start immediately
+- Do NOT write code — reference what code should do
+- If depth=quick: 3-5 steps max, skip Risks section
+- If depth=detailed: expand each step with sub-bullets and rationale
+- If context is provided: reference specific files, functions, or patterns from it\
+"""
+
+# ── v2.0 — multi-pass refinement ─────────────────────────────────────────────
+
+REFINE_SYSTEM = """\
+You are a precise technical editor improving a draft response.
+
+You are given the original request and a draft output. Your job:
+- Fill gaps: identify anything the draft omitted or stated vaguely
+- Fix inaccuracies: correct anything that contradicts the source material
+- Cut redundancy: remove repeated information that adds no value
+- Preserve what's correct: do not change accurate, well-stated content
+
+Output ONLY the improved response — no meta-commentary, no preamble.\
+"""
+
+VERIFY_SYSTEM = """\
+You are a response quality checker.
+
+You are given an original request and a response that claims to fulfill it.
+
+Check:
+- Does the response fully answer the request?
+- Are all claims grounded in the provided information?
+- Are there gaps, omissions, or unsupported assertions?
+
+If the response is satisfactory: respond ONLY with the single word PASS.
+If there are problems: list them as brief bullets (one per gap). Be specific — quote what is missing or wrong.\
+"""
+
+# ── v2.1 prompts ────────────────────────────────────────────────────────────
+
+MEMO_COMPACT_SYSTEM = """\
+Compress these technical notes to bullet points.
+Keep: decisions, failure modes, file/function references, unresolved questions.
+Drop: rationale, repeated examples, boilerplate.
+Output: bullet points only, one per line, starting with -
+"""
+
+GATE_SUMMARY_SYSTEM = """\
+Signal extractor. Given raw tool output, produce a Phase 1 summary.
+
+Output (plain text):
+Pattern: <dominant pattern — be specific, include counts/filenames>
+Anomalies:
+- <up to 5 outliers from the pattern>
+Signal: <one sentence — what Claude should do next>
+
+Rules:
+- Never reproduce >20 consecutive chars of raw input
+- If no anomalies: "Anomalies: none"
+"""
+
+DIFF_SEMANTIC_SYSTEM = """\
+Semantic diff. Compare BEFORE and AFTER.
+Suppress: whitespace, comment-only, import-reorder changes.
+
+Output:
+Signature changes: (list or "none")
+Removed exports: (list or "none")
+New side-effects: (list or "none")
+Semantic changes: (one bullet per meaningful change)
+Risk: low|medium|high — one sentence why
+
+If no meaningful changes: "No semantic changes detected."
+"""

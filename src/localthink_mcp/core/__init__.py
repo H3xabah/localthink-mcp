@@ -1,0 +1,1 @@
+# localthink-mcp core infrastructure

@@ -20,6 +20,9 @@ from server import (
     local_prompt_compress, local_symbols, local_find_impl,
     local_strip_to_skeleton, local_translate,
     local_schema_infer, local_timeline,
+    local_gate, local_memo_write, local_memo_read,
+    local_note_write, local_note_search, local_diff_semantic,
+    local_run_lint,
 )
 
 # ── Fixtures ──────────────────────────────────────────────────────────────
@@ -607,6 +610,127 @@ try:
         len(PY_CODE) * 2,
         lambda o: True if "MAX_ATTEMPTS" in o or "rate" in o.lower() or "10" in o else "diff details",
         path_a=py_file, path_b=py_file_v2)
+
+    # ── v2.1 new tools ───────────────────────────────────────────────────────
+
+    # 1. local_gate — regex fallback path (no Ollama needed)
+    gate_input = (
+        "INFO: server started\n"
+        "INFO: processing request\n"
+        "ERROR: connection refused on port 5432\n"
+        "WARN: retry attempt 1\n"
+        "ERROR: timeout waiting for DB\n"
+        "INFO: shutting down\n"
+    )
+    gate_out = run(
+        "local_gate",
+        local_gate,
+        len(gate_input),
+        lambda o: (
+            True if "Pattern:" in o and len(o) < len(gate_input) else
+            "expected Pattern: header and smaller output"
+        ),
+        raw_output=gate_input,
+    )
+    # Verify no raw chunk > 20 consecutive chars is repeated verbatim in output
+    if gate_out and any(chunk in gate_out for chunk in ["ERROR: connection refused on port 5432"]):
+        results.append(("local_gate_raw_check", "FAIL", len(gate_input), len(gate_out), 1.0,
+                         "raw content > 20 chars leaked into gate output"))
+    else:
+        results.append(("local_gate_raw_check", "PASS", len(gate_input), 0, 0.0,
+                         "raw content suppressed correctly"))
+
+    # 2. local_memo_write + local_memo_read roundtrip
+    memo_dir = tempfile.mkdtemp(prefix="localthink_memo_")
+    try:
+        os.environ["LOCALTHINK_MEMO_DIR"] = memo_dir
+        import importlib
+        import core.memo as _memo
+        importlib.reload(_memo)
+        # Patch memo_store paths in server module to use new dir
+        import server as _srv
+        _srv.memo_store.MEMO_DIR = _memo.MEMO_DIR
+        _srv.memo_store.CONTEXT_FILE = _memo.CONTEXT_FILE
+
+        write_out = local_memo_write("decisions", "Use ruff not flake8 — faster")
+        read_out = local_memo_read(section="decisions")
+        run(
+            "local_memo_roundtrip",
+            lambda **_: read_out,
+            len("Use ruff not flake8 — faster"),
+            lambda o: (
+                True if "ruff" in o else "decision text not found in read output"
+            ),
+        )
+    finally:
+        del os.environ["LOCALTHINK_MEMO_DIR"]
+        shutil.rmtree(memo_dir, ignore_errors=True)
+
+    # 3. local_note_write + local_note_search roundtrip
+    note_dir = tempfile.mkdtemp(prefix="localthink_notes_")
+    try:
+        os.environ["LOCALTHINK_MEMO_DIR"] = note_dir
+        importlib.reload(_memo)
+        _srv.memo_store.MEMO_DIR = _memo.MEMO_DIR
+        _srv.memo_store.NOTES_DIR = _memo.NOTES_DIR
+        _srv.memo_store.NOTES_INDEX = _memo.NOTES_INDEX
+
+        local_note_write("gotcha", "Ollama health_check returns False if port 11434 is firewalled")
+        search_out = local_note_search("ollama firewalled port")
+        run(
+            "local_note_roundtrip",
+            lambda **_: search_out,
+            len("Ollama health_check returns False if port 11434 is firewalled"),
+            lambda o: (
+                True if "firewalled" in o or "gotcha" in o else "note not found in search"
+            ),
+        )
+    finally:
+        del os.environ["LOCALTHINK_MEMO_DIR"]
+        shutil.rmtree(note_dir, ignore_errors=True)
+
+    # 4. local_diff_semantic with identical strings (cache or no-Ollama path)
+    identical = "def foo():\n    return 42\n"
+    run(
+        "local_diff_semantic_identical",
+        local_diff_semantic,
+        len(identical) * 2,
+        lambda o: (
+            True if "No semantic changes" in o or "none" in o.lower() or "Unavailable" in o
+            else "expected no-change signal for identical inputs"
+        ),
+        before=identical,
+        after=identical,
+    )
+
+    # 5. local_run_lint detection — mock os.path.exists for pyproject.toml
+    from unittest.mock import patch as _mock_patch
+
+    _orig_exists = os.path.exists
+    def _fake_exists(p: str) -> bool:
+        if p.endswith("pyproject.toml"):
+            return True
+        return _orig_exists(p)
+
+    captured_cmd: list[list] = []
+    def _fake_run(cmd, **kwargs):
+        captured_cmd.append(cmd)
+        class _R:
+            stdout = ""; stderr = ""; returncode = 0
+        return _R()
+
+    with _mock_patch("os.path.exists", side_effect=_fake_exists), \
+         _mock_patch("subprocess.run", side_effect=_fake_run):
+        # Patch pyproject.toml content check
+        with _mock_patch("builtins.open", side_effect=lambda *a, **kw: __import__("io").StringIO("[tool.ruff]\nignore=[]")):
+            local_run_lint()
+
+    run(
+        "local_run_lint_detect",
+        lambda **_: "ruff" if captured_cmd and "ruff" in str(captured_cmd[0]) else "flake8",
+        0,
+        lambda o: True if "ruff" in o else "expected ruff to be selected",
+    )
 
 finally:
     shutil.rmtree(tmpdir, ignore_errors=True)

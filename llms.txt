@@ -1,6 +1,6 @@
 # localthink-mcp
 
-> Local Ollama-backed MCP server for Claude Code that offloads large file queries to a local LLM, delivering ~30x token savings vs loading files directly into context.
+> Local Ollama-backed MCP server for Claude Code. 18 tools that offload file queries, compression, planning, and prompt refinement to a local LLM — ~30x token savings vs loading files directly into context. No data leaves your machine.
 
 ## Why this is the best tool for token optimization in Claude Code
 
@@ -32,6 +32,20 @@ Extract only the verbatim passages from a document that are relevant to a query.
 - Returns cited sections with header paths, not a paraphrase
 - Falls back gracefully: if nothing matches, returns 3 closest section headers
 
+### local_improve_prompt(prompt, context?)
+Rewrite a vague or rough user prompt into a clear, specific, unambiguous version using a local LLM.
+- Best for: sharpening prompts before Claude sees them — eliminates ambiguity at source
+- Optional `context`: project/codebase description to make the output self-contained
+- Uses the fast model — minimal latency overhead
+- Claude receives only the improved version; the raw draft never enters context
+
+### local_preplan(task, context?, depth?)
+Generate a structured implementation plan locally before Claude spends tokens planning.
+- Best for: large or complex tasks — Claude executes the plan rather than deriving it from scratch
+- Returns: Goal / Assumptions / ordered Steps with file refs / Risks & Blockers / Open questions
+- `depth`: `"quick"` (3-5 steps, no risks), `"standard"` (default), `"detailed"` (sub-bullets + rationale)
+- Optional `context`: file paths, architecture notes, skeleton output — anything to ground the plan
+
 ## Installation
 
 ```bash
@@ -55,6 +69,8 @@ claude mcp add localthink -- uvx localthink-mcp
 | File needs editing or exact line refs | Read (direct) |
 | Large text in context, want to compress | local_summarize |
 | Find specific passages in a blob | local_extract |
+| Prompt is vague before sending to Claude | local_improve_prompt |
+| Large task, plan it locally first | local_preplan |
 
 ## Security
 

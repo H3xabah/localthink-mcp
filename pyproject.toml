@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "localthink-mcp"
-version = "1.1.0"
-description = "Local Ollama-backed MCP server for Claude Code — 13 tools, zero cloud, maximum token savings"
+version = "2.1.0"
+description = "Local Ollama-backed MCP server — 44 tools, smart buffer, execution filters, persistent scratchpad"
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.10"
