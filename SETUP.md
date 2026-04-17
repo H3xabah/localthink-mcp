@@ -412,11 +412,52 @@ ollama pull qwen2.5:14b-instruct-q4_K_M
 
 ---
 
+## Using the Settings Editor
+
+Run this from Claude Code to open the GUI:
+
+```
+local_config
+```
+
+A desktop window opens with five tabs. Every configurable setting is exposed — no JSON editing required.
+
+**Tab overview:**
+
+| Tab | What you configure |
+|-----|--------------------|
+| **Ollama** | Server URL and the three model tiers (default, fast, tiny) |
+| **Timeouts** | Per-tier response timeouts and the health-check probe |
+| **Limits** | File size cap, pipeline step cap, scan file cap, classify sample, concurrency |
+| **Cache** | Where results are stored on disk and how long they live |
+| **Memo** | Scratchpad and notes storage location, auto-compact threshold |
+
+**Status bar** — shows a live Ollama probe. Green dot = Ollama is running and reachable. Red dot = not reachable (run `ollama serve` to fix).
+
+**Model dropdowns** — auto-filled with every model pulled on your machine. You can also type any model name directly.
+
+**Directory fields** — Cache directory and Memo directory include a Browse button for folder selection.
+
+**Buttons:**
+
+| Button | Effect |
+|--------|--------|
+| **Save** | Writes `~/.localthink-mcp/config.json` and hot-reloads the server |
+| **Reset Tab** | Restores the current tab's fields to built-in defaults (unsaved) |
+| **Cancel** | Closes with no changes written |
+
+**Hot-reload vs restart:**
+
+Most settings take effect immediately after Save — no restart needed. The exceptions are the four Ollama settings (Base URL and the three model fields): these require reconnecting the MCP server after saving.
+
+To reconnect: open the MCP panel in Claude Code (`/mcp`) and reconnect localthink, or close and reopen Claude Code.
+
+---
+
 ## Full configuration reference
 
-**Quickest path:** call `local_config` from Claude Code to open the settings GUI. It covers all 18 settings with descriptions and lets you browse for directories.
+All 18 settings, their env vars, defaults, and guidance. These can also be set manually as env vars under `mcpServers.localthink.env` in `.claude/settings.json` — env vars take priority over the config file.
 
-**Manual env vars** — add to `.claude/settings.json` under `mcpServers.localthink.env`, or set them in your shell before starting Claude Code.
 
 #### Ollama
 

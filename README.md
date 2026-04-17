@@ -261,9 +261,50 @@ r = local_chat(r["doc"], "Show me the relevant config keys", r["history"])
 
 ## Configuration
 
-The easiest way to configure LocalThink is to call `local_config` from Claude Code — it opens a GUI that covers every setting below.
+### Using the Settings Editor
 
-Settings are saved to `~/.localthink-mcp/config.json` and applied automatically on the next server start.
+The fastest way to configure LocalThink is the built-in settings GUI. Type this in Claude Code:
+
+```
+local_config
+```
+
+A desktop window opens immediately — no terminal, no JSON editing.
+
+**What you'll see:**
+
+| Tab | Settings inside |
+|-----|----------------|
+| **Ollama** | Base URL · Default model · Fast model · Tiny model |
+| **Timeouts** | Main timeout · Fast timeout · Tiny timeout · Health check · code_surface timeout |
+| **Limits** | Max file bytes · Max pipeline steps · Max scan files · Classify sample size · Batch concurrency |
+| **Cache** | Cache directory · Cache TTL (days) |
+| **Memo** | Memo directory · Compact threshold |
+
+**Status bar** — the bottom of the window shows a live Ollama probe: a green dot with your model count means Ollama is reachable. Red dot means it's not running (`ollama serve` to fix).
+
+**Model dropdowns** — the Ollama tab auto-populates model fields with every model currently pulled on your machine. You can also type a model name directly.
+
+**Directory fields** — Cache directory and Memo directory have a Browse button that opens a folder picker.
+
+**Buttons:**
+
+| Button | What it does |
+|--------|-------------|
+| **Save** | Writes `~/.localthink-mcp/config.json` and hot-reloads the server — most changes apply instantly |
+| **Reset Tab** | Restores all fields in the current tab to their built-in defaults (does not save) |
+| **Cancel** | Closes without saving any changes |
+
+**What applies instantly vs what needs a restart:**
+
+- Instant (no restart needed): timeouts, limits, cache settings, memo settings
+- Requires restarting the MCP server: Ollama Base URL, Default model, Fast model, Tiny model
+
+To restart after a model change: open the MCP panel in Claude Code (`/mcp`) and reconnect, or close and reopen Claude Code.
+
+---
+
+Settings are saved to `~/.localthink-mcp/config.json`. You can also set any value manually as an env var (env vars take priority over the config file).
 
 ### Ollama
 
