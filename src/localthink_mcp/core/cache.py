@@ -10,8 +10,11 @@ import hashlib
 import json
 import os
 import time
+import threading
 from pathlib import Path
 from typing import Callable
+
+_WRITE_LOCK = threading.Lock()
 
 CACHE_DIR     = Path(os.environ.get("LOCALTHINK_CACHE_DIR", "") or (Path.home() / ".cache" / "localthink-mcp"))
 CACHE_TTL_DAYS = int(os.environ.get("LOCALTHINK_CACHE_TTL_DAYS", "30"))
@@ -65,7 +68,9 @@ def get_or_compute(tool_name: str, inputs: dict, compute_fn: Callable[[], str]) 
     if cached is not None:
         return cached
     result = compute_fn()
-    put(key, result)
+    with _WRITE_LOCK:
+        if get(key) is None:   # re-check after compute; another thread may have written
+            put(key, result)
     return result
 
 

@@ -3,6 +3,48 @@
 All notable changes to this project will be documented in this file.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
+## [2.3.0] — 2026-04-17
+
+### Added
+- `local_suggest` — intelligent tool picker; ordered call plan for any task, cached
+- `local_explain_error` — root cause + fix from exception; auto-detects implicated file
+- `local_git_diff` — semantic diff of git changes; diff never enters Claude's context
+- `local_session_recall` — surfaces relevant notes + last checkpoint at session start
+- `local_run_tests` auto-writes new failures to scratchpad `pitfalls` section
+- `local_pipeline` steps now individually cached
+- New SCHEMA settings: `max_notes`, `chat_history_chars`, `git_diff_timeout`
+  All three appear in `local_config` GUI under the correct tabs automatically
+- `.github/workflows/lint.yml` — ruff + import check on every push and PR
+- `publish.yml` lint gate — build job now requires lint to pass first
+
+### Fixed
+- `local_compress_data` mutable default argument (`[]` → `None`)
+- Dead variable `ctx_file` removed from `memo_write()`
+- Bare `open()` calls in `local_run_tests` and `local_run_lint` replaced with `Path.read_text()`
+- `local_gate` cache key now hashes `raw_output[:8000]` to match what is sent to the model
+- `local_diff` and `local_diff_semantic` cache keys hash `before` and `after` independently
+- `local_scan_dir` now respects `LOCALTHINK_MAX_SCAN_FILES` when `max_files=0`
+- `local_run_tests` total_run count sums all matched groups (previously captured only the first)
+- `ollama_client.generate()` and `generate_json()` return readable error strings on failure
+- Cache writes are thread-safe under concurrent batch calls
+- Permanent notes index trimmed to `max_notes` on each write (default 500)
+- `local_chat` history trimmed to `chat_history_chars` per turn (default 6000)
+- `local_run_build` Python branch replaced per-file `py_compile` loop with `compileall`
+- GUI mousewheel no longer binds globally — scroll only activates on the hovered tab canvas
+
+### Removed
+- `local_route` and `local_hallucination_check` removed from all documentation
+  (were documented but never implemented in server.py)
+
+### Changed
+- Version: 2.3.0
+- Tool count: 45 → 49
+- `local_scan_dir` `max_files` default: 20 → 0 (reads LOCALTHINK_MAX_SCAN_FILES)
+- Tier line counts: full ~60, half ~35, quarter ~15
+- GUI footer text clarifies which settings are instant vs require restart
+
+---
+
 ## [2.2.0] — 2026-04-17
 
 ### Added

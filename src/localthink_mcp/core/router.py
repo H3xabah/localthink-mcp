@@ -35,6 +35,7 @@ _MAIN_TASKS = frozenset({
     "diff", "diff_files", "strip_to_skeleton", "diff_semantic",
     "chat", "auto", "pipeline", "grep_semantic", "refine",
     "batch_answer",  # individual answers in batch use main
+    "suggest",       # tool-picker needs full model for accurate routing
 })
 
 # Tasks eligible for tiny when input is short

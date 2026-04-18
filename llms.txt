@@ -1,6 +1,6 @@
 # localthink-mcp
 
-> Local Ollama-backed MCP server for Claude Code. 45 tools that offload file queries, compression, code navigation, execution filters, and session management to a local LLM — ~30x token savings vs loading files directly into context. All inference is local; no data leaves the machine.
+> Local Ollama-backed MCP server for Claude Code. 49 tools that offload file queries, compression, code navigation, execution filters, and session management to a local LLM — ~30x token savings vs loading files directly into context. All inference is local; no data leaves the machine.
 
 ## Why use this
 
@@ -11,7 +11,7 @@ Benchmarked result: **16 KB file query = ~134 tokens via localthink vs ~4,100 to
 Three model tiers route work to the right-sized model automatically:
 - **MAIN** — deep ops: summarize, answer, audit, pipeline, run_tests
 - **FAST** — lightweight ops: classify, outline, symbols, translate, schema_infer
-- **TINY** — instant ops: gate, route decisions, trivial classification
+- **TINY** — instant ops: gate, trivial classification
 
 ## Installation
 
@@ -51,15 +51,15 @@ Three instruction tiers inject directly into CLAUDE.md — no file editing:
 
 | Tier | Lines | Tools | Best for |
 |------|-------|-------|----------|
-| full | ~55 | All 45 | Complex projects, new codebases |
-| half | ~30 | ~18 | Daily dev: file nav + CI filters |
-| quarter | ~12 | ~6 | Minimal: just prevent big-file loads |
+| full | ~60 | All 49 | Complex projects, new codebases |
+| half | ~35 | ~22 | Daily dev: file nav + CI filters |
+| quarter | ~15 | ~7 | Minimal: just prevent big-file loads |
 
 Switch: `python ~/.claude/localthink/set-tier.py [full|half|quarter]`
 
 ## Configuration
 
-Call `local_config()` from Claude Code to open the settings GUI — all 18 settings, 5 tabs, no file editing.
+Call `local_config()` from Claude Code to open the settings GUI — all 21 settings, 5 tabs, no file editing.
 
 Key env vars (can also be set via GUI):
 - `OLLAMA_BASE_URL` — default: `http://localhost:11434`
@@ -73,7 +73,7 @@ Key env vars (can also be set via GUI):
 - `LOCALTHINK_CACHE_TTL_DAYS` — result cache lifetime (default: 30)
 - `LOCALTHINK_MAX_FILE_BYTES` — per-file read cap (default: 200000)
 
-## All 45 tools
+## All 49 tools
 
 ### Core Q&A / Compression
 - `local_answer(file_path, question, passes?)` — answer any question from a file without loading it
@@ -104,6 +104,12 @@ Key env vars (can also be set via GUI):
 - `local_schema_infer(data)` — infer JSON Schema from sample data
 - `local_translate(text, target_format)` — convert between JSON/YAML/TOML/CSV/pseudocode
 - `local_scan_dir(dir_path, pattern, question?, max_files?)` — concurrent summarize/query of every matching file
+
+### Diagnostics (v2.3)
+- `local_explain_error(error_text, file_path?, passes?)` — root cause + fix from exception; auto-detects implicated file from stack trace
+- `local_git_diff(repo_path?, ref?, focus?)` — semantic summary of git changes; diff never enters Claude's context
+- `local_session_recall(task, limit?)` — search permanent notes + last checkpoint at session start
+- `local_suggest(task, files?)` — ordered call plan for any task; eliminates reasoning over 49 tool descriptions
 
 ### Compression
 - `local_compress_log(file_path, level?, since?)` — compress log file to signal-only summary
@@ -142,7 +148,7 @@ Key env vars (can also be set via GUI):
 - `local_cache_clear(older_than_days?)` — evict cached results
 
 ### Settings
-- `local_config()` — open settings GUI (5 tabs, 18 settings, hot-reload on save)
+- `local_config()` — open settings GUI (5 tabs, 21 settings, hot-reload on save)
 
 ## When to use localthink vs Read
 

@@ -33,18 +33,21 @@ SCHEMA: dict[str, dict] = {
     "timeout_tiny":              {"env": "LOCALTHINK_TINY_TIMEOUT",            "default": 60,                            "type": "int",  "label": "Tiny timeout (s)",          "section": "Timeouts",  "hint": "Timeout for tiny model calls"},
     "timeout_health":            {"env": "LOCALTHINK_HEALTH_TIMEOUT",          "default": 2,                             "type": "int",  "label": "Health check (s)",          "section": "Timeouts",  "hint": "Timeout for Ollama reachability probe"},
     "timeout_code_surface":      {"env": "LOCALTHINK_CODE_SURFACE_TIMEOUT",    "default": 600,                           "type": "int",  "label": "code_surface timeout (s)",  "section": "Timeouts",  "hint": "Timeout for code_surface on large files"},
+    "git_diff_timeout":          {"env": "LOCALTHINK_GIT_DIFF_TIMEOUT",        "default": 30,                            "type": "int",  "label": "git diff timeout (s)",      "section": "Timeouts",  "hint": "Subprocess timeout for local_git_diff"},
     # Limits
     "max_file_bytes":            {"env": "LOCALTHINK_MAX_FILE_BYTES",          "default": 200000,                        "type": "int",  "label": "Max file size (bytes)",     "section": "Limits",    "hint": "Files larger than this are truncated before processing"},
     "max_pipeline_steps":        {"env": "LOCALTHINK_MAX_PIPELINE_STEPS",      "default": 5,                             "type": "int",  "label": "Max pipeline steps",        "section": "Limits",    "hint": "Maximum steps allowed in local_pipeline"},
     "max_scan_files":            {"env": "LOCALTHINK_MAX_SCAN_FILES",          "default": 20,                            "type": "int",  "label": "Max scan files",            "section": "Limits",    "hint": "Maximum files processed per local_scan_dir call"},
     "classify_sample":           {"env": "LOCALTHINK_CLASSIFY_SAMPLE",         "default": 8000,                          "type": "int",  "label": "Classify sample (chars)",   "section": "Limits",    "hint": "Characters sampled for local_classify"},
     "max_concurrency":           {"env": "LOCALTHINK_MAX_CONCURRENCY",         "default": 4,                             "type": "int",  "label": "Batch concurrency",         "section": "Limits",    "hint": "Parallel workers for local_batch_answer and local_scan_dir"},
+    "chat_history_chars":        {"env": "LOCALTHINK_CHAT_HISTORY_CHARS",      "default": 6000,                          "type": "int",  "label": "Chat history limit (chars)","section": "Limits",    "hint": "Max characters of conversation history kept per local_chat turn"},
     # Cache
     "cache_dir":                 {"env": "LOCALTHINK_CACHE_DIR",               "default": "",                            "type": "dir",  "label": "Cache directory",           "section": "Cache",     "hint": "Blank = ~/.cache/localthink-mcp"},
     "cache_ttl_days":            {"env": "LOCALTHINK_CACHE_TTL_DAYS",          "default": 30,                            "type": "int",  "label": "Cache TTL (days)",          "section": "Cache",     "hint": "How long cache entries live before expiry"},
     # Memo / Notes
     "memo_dir":                  {"env": "LOCALTHINK_MEMO_DIR",                "default": "",                            "type": "dir",  "label": "Memo directory",            "section": "Memo",      "hint": "Blank = ~/.localthink-mcp"},
     "memo_compact_threshold":    {"env": "LOCALTHINK_COMPACT_THRESHOLD",       "default": 3000,                          "type": "int",  "label": "Compact threshold (chars)", "section": "Memo",      "hint": "Auto-compact a scratchpad section when it exceeds this size"},
+    "max_notes":                 {"env": "LOCALTHINK_MAX_NOTES",               "default": 500,                           "type": "int",  "label": "Max notes",                 "section": "Memo",      "hint": "Maximum permanent notes kept in index (oldest trimmed when exceeded)"},
 }
 
 SECTIONS = ["Ollama", "Timeouts", "Limits", "Cache", "Memo"]

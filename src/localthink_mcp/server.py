@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
 """
-localthink-mcp v2.1.0 — Local Ollama-backed MCP server for Claude Code.
+localthink-mcp v2.3.0 — Local Ollama-backed MCP server for Claude Code.
 
-New in v2.1:
-  - Smart buffer: local_gate (Phase 1 summary) + local_slice (raw window on demand)
-  - Semantic diff: local_diff_semantic — meaning changes only, noise suppressed
-  - Execution filters: local_run_tests, local_run_lint, local_run_build
-  - Session scratchpad: local_memo_write/read/checkpoint (CONTEXT.md, auto-compacted)
-  - Permanent model notes: local_note_write/search (cross-session, never cleared)
-  - Extended code_surface timeout: configurable via LOCALTHINK_CODE_SURFACE_TIMEOUT
+New in v2.3:
+  - local_suggest: intelligent tool picker, ordered call plan for any task
+  - local_explain_error: root cause + fix from exception, auto-detects file
+  - local_git_diff: semantic diff of git changes, diff never enters context
+  - local_session_recall: surfaces notes + last checkpoint at session start
+  - local_run_tests: auto-writes new failures to scratchpad pitfalls section
+  - local_pipeline: steps individually cached
+  - Thread-safe cache writes, Ollama error handling, full doc consistency
 
-Tools (45 total):
+Tools (51 total):
   Core Q&A / compression:
     local_summarize, local_extract, local_answer, local_shrink_file
     local_diff, local_diff_files, local_batch_answer
@@ -20,21 +21,25 @@ Tools (45 total):
     local_code_surface, local_symbols, local_find_impl, local_strip_to_skeleton
     local_grep_semantic
   Document analysis:
-    local_classify, local_outline, local_audit, local_timeline, local_schema_infer
-    local_translate, local_scan_dir
+    local_classify, local_suggest, local_outline, local_audit, local_timeline
+    local_schema_infer, local_translate, local_scan_dir
   Compression:
-    local_compress_log, local_compress_stack_trace, local_compress_data
-    local_session_compress, local_prompt_compress
+    local_compress_log, local_compress_stack_trace, local_explain_error
+    local_compress_data, local_session_compress, local_prompt_compress
   Pre-injection (run before Claude):
     local_improve_prompt, local_preplan, local_refine
   Smart Buffer (v2.1):
     local_gate, local_slice, local_diff_semantic
+  Diff / git (v2.3):
+    local_git_diff
   Execution Filters (v2.1):
     local_run_tests, local_run_lint, local_run_build
   Scratchpad (v2.1):
     local_memo_write, local_memo_read, local_memo_checkpoint
   Model Notes (v2.1):
     local_note_write, local_note_search
+  Session intelligence (v2.3):
+    local_session_recall
   Cache management:
     local_models, local_cache_stats, local_cache_clear
   Settings:
@@ -46,6 +51,8 @@ import re
 import json
 import glob as _glob
 import subprocess
+import hashlib as _hashlib
+from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(__file__))
 
@@ -81,19 +88,24 @@ import core.structured as structured
 mcp = FastMCP("localthink")
 
 _UNAVAILABLE = "[localthink] Ollama is not running. Start it with: ollama serve"
-_MAX_FILE_BYTES     = int(os.environ.get("LOCALTHINK_MAX_FILE_BYTES",     "200000"))
-_MAX_PIPELINE_STEPS = int(os.environ.get("LOCALTHINK_MAX_PIPELINE_STEPS", "5"))
-_MAX_SCAN_FILES     = int(os.environ.get("LOCALTHINK_MAX_SCAN_FILES",     "20"))
-_CLASSIFY_SAMPLE    = int(os.environ.get("LOCALTHINK_CLASSIFY_SAMPLE",    "8000"))
+_MAX_FILE_BYTES          = int(os.environ.get("LOCALTHINK_MAX_FILE_BYTES",          "200000"))
+_MAX_PIPELINE_STEPS      = int(os.environ.get("LOCALTHINK_MAX_PIPELINE_STEPS",      "5"))
+_MAX_SCAN_FILES          = int(os.environ.get("LOCALTHINK_MAX_SCAN_FILES",          "20"))
+_CLASSIFY_SAMPLE         = int(os.environ.get("LOCALTHINK_CLASSIFY_SAMPLE",         "8000"))
+_MAX_CHAT_HISTORY_CHARS  = int(os.environ.get("LOCALTHINK_CHAT_HISTORY_CHARS",      "6000"))
+_GIT_DIFF_TIMEOUT        = float(os.environ.get("LOCALTHINK_GIT_DIFF_TIMEOUT",      "30"))
 
 
 def reload_env() -> None:
     """Re-read server-level constants from env. Called by config.apply_config()."""
     global _MAX_FILE_BYTES, _MAX_PIPELINE_STEPS, _MAX_SCAN_FILES, _CLASSIFY_SAMPLE
-    _MAX_FILE_BYTES     = int(os.environ.get("LOCALTHINK_MAX_FILE_BYTES",     "200000"))
-    _MAX_PIPELINE_STEPS = int(os.environ.get("LOCALTHINK_MAX_PIPELINE_STEPS", "5"))
-    _MAX_SCAN_FILES     = int(os.environ.get("LOCALTHINK_MAX_SCAN_FILES",     "20"))
-    _CLASSIFY_SAMPLE    = int(os.environ.get("LOCALTHINK_CLASSIFY_SAMPLE",    "8000"))
+    global _MAX_CHAT_HISTORY_CHARS, _GIT_DIFF_TIMEOUT
+    _MAX_FILE_BYTES         = int(os.environ.get("LOCALTHINK_MAX_FILE_BYTES",         "200000"))
+    _MAX_PIPELINE_STEPS     = int(os.environ.get("LOCALTHINK_MAX_PIPELINE_STEPS",     "5"))
+    _MAX_SCAN_FILES         = int(os.environ.get("LOCALTHINK_MAX_SCAN_FILES",         "20"))
+    _CLASSIFY_SAMPLE        = int(os.environ.get("LOCALTHINK_CLASSIFY_SAMPLE",        "8000"))
+    _MAX_CHAT_HISTORY_CHARS = int(os.environ.get("LOCALTHINK_CHAT_HISTORY_CHARS",     "6000"))
+    _GIT_DIFF_TIMEOUT       = float(os.environ.get("LOCALTHINK_GIT_DIFF_TIMEOUT",     "30"))
 
 
 def _read_file(path: str) -> tuple[str, str]:
@@ -187,7 +199,11 @@ def local_diff(before: str, after: str, focus: str = "") -> str:
     Optional focus: topic to prioritize (e.g. 'auth', 'breaking changes')."""
     if not health_check():
         return _UNAVAILABLE
-    inputs = cache.text_inputs(before + after, focus=focus)
+    inputs = cache.text_inputs(
+        before,
+        after_h=_hashlib.sha256(after.encode()).hexdigest()[:16],
+        focus=focus,
+    )
 
     def compute():
         focus_line = f"Focus on changes related to: {focus}\n\n" if focus else ""
@@ -222,6 +238,45 @@ def local_diff_files(path_a: str, path_b: str, focus: str = "") -> str:
         return generate(prompt=prompt, system=DIFF_SYSTEM)
 
     return cache.get_or_compute("diff_files", inputs, compute)
+
+
+@mcp.tool()
+def local_git_diff(repo_path: str = ".", ref: str = "HEAD", focus: str = "") -> str:
+    """Semantic summary of git changes. The diff never enters Claude's context.
+
+    repo_path: path to git repo root (default: current working directory)
+    ref:       git ref to diff against (default: HEAD = uncommitted changes)
+    focus:     topic to prioritise, e.g. 'security', 'breaking changes'
+
+    Returns the same structured format as local_diff: Added / Removed / Changed / Impact.
+    Requires git in PATH."""
+    if not health_check():
+        return _UNAVAILABLE
+    try:
+        proc = subprocess.run(
+            ["git", "diff", ref, "--stat", "--patch", "--no-color"],
+            capture_output=True, text=True, timeout=_GIT_DIFF_TIMEOUT, cwd=repo_path,
+        )
+        if proc.returncode != 0:
+            return f"[localthink] git error: {proc.stderr.strip()[:200]}"
+        diff_text = proc.stdout.strip()
+    except FileNotFoundError:
+        return "[localthink] git not found in PATH"
+    except subprocess.TimeoutExpired:
+        return f"[localthink] git diff timed out after {_GIT_DIFF_TIMEOUT}s"
+
+    if not diff_text:
+        return f"No changes vs {ref}."
+
+    diff_text = diff_text[:_MAX_FILE_BYTES]
+    inputs = cache.text_inputs(diff_text, focus=focus)
+
+    def compute() -> str:
+        focus_line = f"Focus on changes related to: {focus}\n\n" if focus else ""
+        prompt = f"{focus_line}=== GIT DIFF ({ref}) ===\n{diff_text}"
+        return generate(prompt=prompt, system=DIFF_SYSTEM)
+
+    return cache.get_or_compute("git_diff", inputs, compute)
 
 
 @mcp.tool()
@@ -271,20 +326,35 @@ def local_pipeline(text: str, steps: list[dict]) -> str:
         op = step.get("op", "")
         if op == "summarize":
             focus = step.get("focus", "")
-            prompt = f"Focus on: {focus}\n\n{current}" if focus else current
-            current = generate(prompt=prompt, system=SUMMARIZE_SYSTEM)
+            step_inputs = cache.text_inputs(current, focus=focus)
+            current = cache.get_or_compute(
+                "pipeline_summarize", step_inputs,
+                lambda p=current, f=focus: generate(
+                    f"Focus on: {f}\n\n{p}" if f else p, system=SUMMARIZE_SYSTEM
+                ),
+            )
         elif op == "extract":
             query = step.get("query", "")
             if not query:
                 return f"[localthink] pipeline step {i}: 'extract' requires a 'query' key"
-            prompt = f"Query: {query}\n\nDocument:\n{current}"
-            current = generate(prompt=prompt, system=EXTRACT_SYSTEM)
+            step_inputs = cache.text_inputs(current, q=query)
+            current = cache.get_or_compute(
+                "pipeline_extract", step_inputs,
+                lambda p=current, q=query: generate(
+                    f"Query: {q}\n\nDocument:\n{p}", system=EXTRACT_SYSTEM
+                ),
+            )
         elif op == "answer":
             question = step.get("question", "")
             if not question:
                 return f"[localthink] pipeline step {i}: 'answer' requires a 'question' key"
-            prompt = f"Question: {question}\n\nDocument:\n{current}"
-            current = generate(prompt=prompt, system=ANSWER_SYSTEM)
+            step_inputs = cache.text_inputs(current, q=question)
+            current = cache.get_or_compute(
+                "pipeline_answer", step_inputs,
+                lambda p=current, q=question: generate(
+                    f"Question: {q}\n\nDocument:\n{p}", system=ANSWER_SYSTEM
+                ),
+            )
         else:
             return f"[localthink] pipeline step {i}: unknown op '{op}'. Supported: summarize, extract, answer"
     return current
@@ -339,6 +409,11 @@ def local_chat(document: str, message: str, history: str = "") -> str:
     prompt = f"Document:\n{compressed_doc}{history_block}\n\nUser: {message}"
     answer = generate(prompt=prompt, system=CHAT_SYSTEM)
     new_history = (f"{history}\nUser: {message}\nAssistant: {answer}").strip()
+
+    if len(new_history) > _MAX_CHAT_HISTORY_CHARS:
+        trimmed = new_history[-_MAX_CHAT_HISTORY_CHARS:]
+        nl = trimmed.find("\n")
+        new_history = trimmed[nl + 1:].lstrip() if nl != -1 else trimmed
 
     result: dict = {"answer": answer, "history": new_history, "doc": compressed_doc}
     if note:
@@ -504,6 +579,64 @@ def local_classify(text: str) -> str:
 
 
 @mcp.tool()
+def local_suggest(task: str, files: list[str] | None = None) -> str:
+    """Recommend which localthink tools to call for a task, in priority order.
+
+    Reads the task description and optional file list. Returns an ordered call plan
+    so Claude spends zero tokens deciding which of the 51 tools to use.
+
+    Returns JSON: [{tool, reason, args_hint}] — up to 5 tools in call order.
+    Result is cached by task+files hash.
+
+    Examples:
+      local_suggest("understand the auth module before refactoring")
+      local_suggest("CI is failing", files=["src/auth.py", "tests/test_auth.py"])
+      local_suggest("compress this session for handoff", files=["transcript.txt"])
+    """
+    if not health_check():
+        return _UNAVAILABLE
+    if files is None:
+        files = []
+
+    file_hint = f"\nFiles involved: {', '.join(files[:10])}" if files else ""
+    tool_list = (
+        "COMPRESSION: local_summarize, local_extract, local_answer, local_shrink_file, "
+        "local_compress_log, local_compress_stack_trace, local_compress_data, "
+        "local_session_compress, local_prompt_compress\n"
+        "CODE NAV: local_code_surface, local_symbols, local_find_impl, "
+        "local_strip_to_skeleton, local_grep_semantic\n"
+        "MULTI-FILE: local_batch_answer, local_scan_dir, local_diff_files, local_git_diff\n"
+        "ANALYSIS: local_classify, local_outline, local_audit, local_timeline, "
+        "local_schema_infer, local_translate\n"
+        "COMPOSITION: local_pipeline, local_auto, local_chat, local_refine\n"
+        "PRE-INJECTION: local_improve_prompt, local_preplan\n"
+        "SMART BUFFER: local_gate, local_slice, local_diff_semantic\n"
+        "EXECUTION: local_run_tests, local_run_lint, local_run_build\n"
+        "MEMORY: local_memo_write, local_memo_read, local_memo_checkpoint, "
+        "local_note_write, local_note_search, local_session_recall\n"
+        "DEBUGGING: local_explain_error\n"
+        "META: local_suggest, local_models, local_cache_stats, local_cache_clear, local_config"
+    )
+    prompt = (
+        f"Task: {task}{file_hint}\n\n"
+        f"Available tools by category:\n{tool_list}\n\n"
+        "Return a JSON array of up to 5 tools, in call order:\n"
+        '[{"tool": "tool_name", "reason": "one sentence", "args_hint": "key args"}]\n'
+        "JSON only. No markdown. No preamble."
+    )
+    inputs = cache.text_inputs(task, fh="|".join(files[:5]))
+
+    def compute() -> str:
+        model = router.pick_model("suggest", len(task))
+        data = structured.generate_structured(
+            prompt=prompt, system=ANSWER_SYSTEM, model=model
+        )
+        return structured.render_as_text(data)
+
+    return cache.get_or_compute("suggest", inputs, compute)
+
+
+@mcp.tool()
 def local_outline(text: str) -> str:
     """Generate a structural outline (table of contents with line ranges) from a document.
     Structure only — no content. Pairs naturally with local_extract."""
@@ -595,18 +728,20 @@ def local_translate(text: str, target_format: str) -> str:
 
 
 @mcp.tool()
-def local_scan_dir(dir_path: str, pattern: str = "*", question: str = "", max_files: int = 20) -> str:
+def local_scan_dir(dir_path: str, pattern: str = "*", question: str = "", max_files: int = 0) -> str:
     """Walk a directory and summarize or query every matching file concurrently.
     Files are processed in parallel (LOCALTHINK_MAX_CONCURRENCY=4).
 
     pattern:  glob relative to dir_path (e.g. '*.py', '**/*.ts')
-    question: if provided, answers this per file; if empty, generates a one-line summary"""
+    question: if provided, answers this per file; if empty, generates a one-line summary
+    max_files: cap on files processed. 0 = use LOCALTHINK_MAX_SCAN_FILES (default 20)."""
     if not health_check():
         return _UNAVAILABLE
 
     search_path = os.path.join(dir_path, pattern)
     all_matches = _glob.glob(search_path, recursive=True)
-    files = [f for f in all_matches if os.path.isfile(f)][:max_files]
+    limit = max_files if max_files > 0 else _MAX_SCAN_FILES
+    files = [f for f in all_matches if os.path.isfile(f)][:limit]
 
     if not files:
         return f"[localthink] No files matched: {search_path}"
@@ -683,11 +818,61 @@ def local_compress_stack_trace(text: str) -> str:
 
 
 @mcp.tool()
-def local_compress_data(data: str, keep_fields: list[str] = [], question: str = "") -> str:
+def local_explain_error(error_text: str, file_path: str = "", passes: int = 1) -> str:
+    """Root-cause an exception and suggest a minimal fix. File never enters Claude's context.
+
+    error_text: full exception or stack trace text
+    file_path:  source file to read for context (optional — auto-detected from trace)
+    passes=2/3: draft->refine->verify for higher-quality fix suggestions
+
+    Returns: root cause (1 sentence), relevant code snippet, fix suggestion."""
+    if not health_check():
+        return _UNAVAILABLE
+
+    if not file_path:
+        m = re.search(r'File "([^"]+\.py)"', error_text)
+        if m:
+            file_path = m.group(1)
+
+    file_ctx = ""
+    if file_path:
+        content, err = _read_file(file_path)
+        if not err:
+            lineno_m = re.search(r"line (\d+)", error_text)
+            if lineno_m:
+                ln = int(lineno_m.group(1))
+                lines = content.splitlines()
+                start, end = max(0, ln - 10), min(len(lines), ln + 5)
+                file_ctx = "\n".join(
+                    f"{i + 1}: {l}" for i, l in enumerate(lines[start:end], start=start)
+                )
+
+    system = (
+        "You are an expert debugger. Given an exception and optional source context, "
+        "identify the root cause in one sentence, show the relevant code snippet, "
+        "and suggest the minimal concrete fix. Name variables, line numbers, and "
+        "the exact change needed. Never be vague."
+    )
+    prompt = (
+        f"Exception:\n{error_text}\n\n"
+        + (f"Relevant code:\n{file_ctx}\n\n" if file_ctx else "")
+        + "Reply with:\n1. Root cause (1 sentence)\n2. Relevant code snippet\n3. Fix"
+    )
+    inputs = cache.text_inputs(error_text, fp=file_path, p=passes)
+    return cache.get_or_compute(
+        "explain_error", inputs,
+        lambda: run_passes(prompt=prompt, system=system, passes=passes),
+    )
+
+
+@mcp.tool()
+def local_compress_data(data: str, keep_fields: list[str] | None = None, question: str = "") -> str:
     """Compress structured data payloads: JSON, CSV, API responses.
 
     keep_fields: strip all other fields from the output.
     question:    answer it in 1-3 sentences before the compressed data."""
+    if keep_fields is None:
+        keep_fields = []
     if not health_check():
         return _UNAVAILABLE
     inputs = cache.text_inputs(data, kf="|".join(keep_fields), q=question)
@@ -882,7 +1067,7 @@ def local_gate(raw_output: str, budget_tokens: int = 400) -> str:
             + f"\nSignal: {len(errors)} error/warn/fail lines found."
         )
     else:
-        inputs = cache.text_inputs(raw_output, b=budget_tokens)
+        inputs = cache.text_inputs(raw_output[:8000], b=budget_tokens)
         summary = cache.get_or_compute(
             "gate",
             inputs,
@@ -911,7 +1096,8 @@ def local_slice(
     """Raw narrow window into a file. Only call explicitly — never auto-inject.
 
     symbol: find definition line and use as offset base.
-    query: score lines by relevance, surface best window."""
+    query: score lines by relevance, surface best window.
+    window: lines to return (default 30, capped at 50)."""
     content, err = _read_file(file_path)
     if err:
         return err
@@ -954,7 +1140,10 @@ def local_diff_semantic(before: str, after: str) -> str:
     Flags: signature changes, removed exports, new side-effects."""
     if not health_check():
         return _UNAVAILABLE
-    inputs = cache.text_inputs(before + after)
+    inputs = cache.text_inputs(
+        before,
+        after_h=_hashlib.sha256(after.encode()).hexdigest()[:16],
+    )
 
     def compute():
         prompt = f"=== BEFORE ===\n{before}\n\n=== AFTER ===\n{after}"
@@ -984,7 +1173,7 @@ def local_run_tests(target: str = "", focus: str = "") -> str:
         if not os.path.exists(pp):
             return False
         try:
-            return section in open(pp).read()
+            return section in Path(pp).read_text(encoding="utf-8")
         except Exception:
             return False
 
@@ -1026,9 +1215,9 @@ def local_run_tests(target: str = "", focus: str = "") -> str:
     except FileNotFoundError as e:
         return json.dumps({"error": f"runner not found: {e}"})
 
-    # Count total run (pytest: "N passed" or "N failed")
-    total_match = re.search(r"(\d+) (?:passed|failed|error)", output)
-    total_run = int(total_match.group(1)) if total_match else 0
+    # Count total run (pytest: "47 passed, 1 failed in 2.3s")
+    _counts = re.findall(r"(\d+) (?:passed|failed|error)", output)
+    total_run = sum(int(n) for n in _counts)
 
     # Parse failures
     failed: list[dict] = []
@@ -1071,6 +1260,14 @@ def local_run_tests(target: str = "", focus: str = "") -> str:
     if not failed:
         return json.dumps({"passed": True, "total_run": total_run, "delta": delta})
 
+    # Auto-write new failures to scratchpad pitfalls section
+    if failed and added > 0:
+        try:
+            pitfall_text = "; ".join(f["name"] for f in failed[:3])
+            memo_store.memo_write("pitfalls", f"New test failures: {pitfall_text}")
+        except Exception:
+            pass
+
     pointer = {"file": failed[0]["name"].split("::")[0], "context_hint": failed[0]["name"]}
     return json.dumps(
         {"failed": failed, "delta": delta, "total_run": total_run, "pointer": pointer},
@@ -1093,7 +1290,7 @@ def local_run_lint(target: str = "") -> str:
             p = os.path.join(cwd, f)
             if os.path.exists(p):
                 try:
-                    if section in open(p).read():
+                    if section in Path(p).read_text(encoding="utf-8"):
                         return True
                 except Exception:
                     pass
@@ -1200,37 +1397,29 @@ def local_run_build() -> str:
     elif exists("Makefile"):
         cmd = ["make"]
     elif exists("pyproject.toml") or exists("setup.py"):
-        # Syntax-check all .py files under src/
+        # Syntax-check all .py files via compileall
         src_dir = os.path.join(cwd, "src")
-        py_files = _glob.glob(os.path.join(src_dir, "**", "*.py"), recursive=True)
-        if not py_files:
-            py_files = _glob.glob(os.path.join(cwd, "**", "*.py"), recursive=True)
-        errors: list[dict] = []
-        for f in py_files:
-            r = subprocess.run(
-                ["python", "-m", "py_compile", f],
-                capture_output=True, text=True, timeout=10,
-            )
-            if r.returncode != 0:
-                err_line = (r.stderr or r.stdout).strip().splitlines()
-                errors.append({"file": f, "msg": err_line[0] if err_line else "syntax error"})
-        if not errors:
-            return json.dumps({"built": True, "warnings": 0})
-        root = errors[0]
-        symbols = re.findall(r"\b[A-Z][a-zA-Z_]+\b", root["msg"])
-        return json.dumps(
-            {
-                "root_cause": f"{os.path.relpath(root['file'], cwd)} — {root['msg']}",
-                "affected_symbols": symbols,
-                "error_surface": root["msg"],
-                "pointer": {
-                    "file": os.path.relpath(root["file"], cwd),
-                    "offset_lines": 0,
-                    "context_hint": root["msg"][:80],
-                },
-            },
-            indent=2,
+        r = subprocess.run(
+            ["python", "-m", "compileall", "-q",
+             src_dir if os.path.isdir(src_dir) else cwd],
+            capture_output=True, text=True, timeout=30,
         )
+        if r.returncode == 0:
+            return json.dumps({"built": True, "warnings": 0})
+        err_out = (r.stdout + r.stderr).strip()
+        err_lines = [l for l in err_out.splitlines() if "Error" in l or "error" in l]
+        root_msg = err_lines[0] if err_lines else (err_out.splitlines()[0] if err_out else "syntax error")
+        file_m = re.search(r'File "([^"]+)"', root_msg)
+        file_ref = os.path.relpath(file_m.group(1), cwd) if file_m else "unknown"
+        line_m = re.search(r"line (\d+)", root_msg)
+        line_no = int(line_m.group(1)) - 1 if line_m else 0
+        symbols = re.findall(r"\b[A-Z][a-zA-Z_]+\b", root_msg)
+        return json.dumps({
+            "root_cause": f"{file_ref} — {root_msg[:180]}",
+            "affected_symbols": symbols[:10],
+            "error_surface": root_msg,
+            "pointer": {"file": file_ref, "offset_lines": line_no, "context_hint": root_msg[:80]},
+        }, indent=2)
     else:
         return json.dumps({"error": "no recognised build system found in cwd"})
 
@@ -1330,6 +1519,37 @@ def local_note_search(query: str, limit: int = 5) -> str:
     return memo_store.note_search(query, limit)
 
 
+@mcp.tool()
+def local_session_recall(task: str, limit: int = 5) -> str:
+    """Search permanent notes + last checkpoint relevant to a task. Call at session start.
+
+    task:  brief description of what you're working on
+    limit: max notes to return (default 5)
+
+    Returns: matching permanent notes + last CHECKPOINT.md summary as a single context block.
+    Replaces the manual local_note_search + CHECKPOINT read pattern."""
+    parts: list[str] = []
+
+    notes_result = memo_store.note_search(task, limit=limit)
+    if notes_result not in ("No notes yet.", "No matching notes found."):
+        parts.append(f"## Relevant notes\n{notes_result}")
+
+    chk = memo_store.CHECKPOINT_FILE
+    if chk.exists():
+        try:
+            chk_text = chk.read_text(encoding="utf-8").strip()[-1200:]
+            parts.append(f"## Last checkpoint\n{chk_text}")
+        except Exception:
+            pass
+
+    if not parts:
+        return (
+            "(no prior context found — "
+            "use local_note_write to begin building cross-session knowledge)"
+        )
+    return "\n\n".join(parts)
+
+
 # ── Settings GUI ──────────────────────────────────────────────────────────────
 
 
@@ -1337,15 +1557,30 @@ def local_note_search(query: str, limit: int = 5) -> str:
 def local_config() -> str:
     """Open the LocalThink settings GUI.
 
-    Launches a graphical settings window where you can configure:
-      - Ollama base URL and connection test
-      - Default / Fast / Tiny model tiers
-      - Cache directory and TTL
-      - Memo/notes directory
+    Launches a desktop window. Settings saved to ~/.localthink-mcp/config.json.
 
-    Settings are saved to ~/.localthink-mcp/config.json and applied
-    to the current process immediately. A server restart is required
-    for model/URL changes to take full effect in ollama_client."""
+    Tabs and settings:
+      Ollama   : Base URL · Default model · Fast model · Tiny model
+                 Dropdowns auto-populate from running Ollama. URL/model changes
+                 require MCP server restart.
+
+      Timeouts : Main (s) · Fast (s) · Tiny (s) · Health check (s)
+                 code_surface (s) · git diff (s)
+
+      Limits   : Max file bytes · Max pipeline steps · Max scan files
+                 Classify sample (chars) · Batch concurrency · Chat history limit (chars)
+
+      Cache    : Cache directory (blank = ~/.cache/localthink-mcp) · Cache TTL (days)
+
+      Memo     : Memo directory (blank = ~/.localthink-mcp) · Compact threshold (chars)
+                 Max notes
+
+    Buttons:
+      Save      — writes config.json and hot-reloads all limits/timeouts instantly
+      Reset Tab — restores current tab to built-in defaults (does not save)
+      Cancel    — closes without saving
+
+    Status bar: green dot = Ollama reachable; red dot = run 'ollama serve'."""
     gui_script = os.path.join(os.path.dirname(__file__), "gui", "config_gui.py")
     if not os.path.exists(gui_script):
         return "[localthink] GUI script not found — reinstall localthink-mcp."

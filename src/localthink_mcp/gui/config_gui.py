@@ -88,8 +88,12 @@ class ConfigApp:
         # Footer
         footer = tk.Frame(self.root)
         footer.pack(fill="x", padx=8, pady=(0, 8))
-        tk.Label(footer, text="Changes apply immediately; restart required for Ollama/model changes.",
-                 fg="gray", font=("TkDefaultFont", 8)).pack(side="left")
+        tk.Label(
+            footer,
+            text="Timeouts · Limits · Cache · Memo: instant.  Ollama URL and models: restart MCP server.",
+            fg="gray",
+            font=("TkDefaultFont", 8),
+        ).pack(side="left")
         tk.Button(footer, text="Cancel", command=self._cancel, width=10).pack(side="right", padx=(4, 0))
         tk.Button(footer, text="Reset Tab", command=self._reset_tab, width=10).pack(side="right", padx=(4, 0))
         tk.Button(footer, text="Save", command=self._save,
@@ -116,8 +120,11 @@ class ConfigApp:
             canvas.configure(scrollregion=canvas.bbox("all"))
         inner.bind("<Configure>", _update_scroll)
 
-        canvas.bind_all("<MouseWheel>",
-            lambda e: canvas.yview_scroll(-1 if e.delta > 0 else 1, "units"))
+        canvas.bind("<Enter>", lambda e, c=canvas: c.bind_all(
+            "<MouseWheel>",
+            lambda ev, cv=c: cv.yview_scroll(-1 if ev.delta > 0 else 1, "units"),
+        ))
+        canvas.bind("<Leave>", lambda e: canvas.unbind_all("<MouseWheel>"))
 
         for row_idx, key in enumerate(keys):
             meta = SCHEMA[key]
@@ -269,13 +276,16 @@ def _int_range(key: str) -> tuple[int, int]:
         "timeout_tiny":           (5,   600),
         "timeout_health":         (1,   30),
         "timeout_code_surface":   (10,  3600),
+        "git_diff_timeout":       (5,   300),
         "max_file_bytes":         (1000, 10_000_000),
         "max_pipeline_steps":     (1,   20),
         "max_scan_files":         (1,   500),
         "classify_sample":        (500, 50_000),
         "max_concurrency":        (1,   32),
+        "chat_history_chars":     (500, 50_000),
         "cache_ttl_days":         (1,   365),
         "memo_compact_threshold": (500, 50_000),
+        "max_notes":              (50, 10_000),
     }
     return ranges.get(key, (0, 99999))
 

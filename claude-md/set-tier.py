@@ -8,9 +8,9 @@ without touching the rest of CLAUDE.md.
 
 Usage:
   python set-tier.py              # show current tier
-  python set-tier.py full         # all 45 tools (~55 lines)
-  python set-tier.py half         # file reads + execution filters (~30 lines)
-  python set-tier.py quarter      # token-saving essentials only (~12 lines)
+  python set-tier.py full         # all 49 tools (~60 lines)
+  python set-tier.py half         # file reads + execution filters (~35 lines)
+  python set-tier.py quarter      # token-saving essentials only (~15 lines)
 
 Copy the claude-md/ directory next to your CLAUDE.md, or update TIER_DIR below.
 """
@@ -97,9 +97,9 @@ def show_status() -> None:
     print()
     print(f"Usage: python set-tier.py [{' | '.join(VALID_TIERS)}]")
     print()
-    print("  full    — all 45 tools (~55 lines)")
-    print("  half    — file reads + execution filters (~30 lines)")
-    print("  quarter — token-saving essentials only (~12 lines)")
+    print("  full    — all 49 tools (~60 lines)")
+    print("  half    — file reads + execution filters (~35 lines)")
+    print("  quarter — token-saving essentials only (~15 lines)")
 
 
 if __name__ == "__main__":

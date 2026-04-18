@@ -45,10 +45,17 @@ def generate(prompt: str, system: str = "", model: str = "", timeout: float | No
     }
     if system:
         payload["system"] = system
-    with httpx.Client(timeout=t) as client:
-        r = client.post(f"{BASE_URL}/api/generate", json=payload)
-        r.raise_for_status()
-        return r.json()["response"]
+    try:
+        with httpx.Client(timeout=t) as client:
+            r = client.post(f"{BASE_URL}/api/generate", json=payload)
+            r.raise_for_status()
+            return r.json()["response"]
+    except httpx.HTTPStatusError as e:
+        return f"[localthink] Ollama HTTP {e.response.status_code}: {e.response.text[:200]}"
+    except httpx.TimeoutException:
+        return f"[localthink] Ollama timed out after {t}s — model may be loading or swapped out"
+    except Exception as e:
+        return f"[localthink] Ollama error: {e}"
 
 
 def generate_fast(prompt: str, system: str = "", timeout: float | None = None) -> str:
@@ -74,10 +81,17 @@ def generate_json(prompt: str, system: str = "", model: str = "", timeout: float
     }
     if system:
         payload["system"] = system
-    with httpx.Client(timeout=t) as client:
-        r = client.post(f"{BASE_URL}/api/generate", json=payload)
-        r.raise_for_status()
-        return r.json()["response"]
+    try:
+        with httpx.Client(timeout=t) as client:
+            r = client.post(f"{BASE_URL}/api/generate", json=payload)
+            r.raise_for_status()
+            return r.json()["response"]
+    except httpx.HTTPStatusError as e:
+        return f"[localthink] Ollama HTTP {e.response.status_code}: {e.response.text[:200]}"
+    except httpx.TimeoutException:
+        return f"[localthink] Ollama timed out after {t}s — model may be loading or swapped out"
+    except Exception as e:
+        return f"[localthink] Ollama error: {e}"
 
 
 def list_models() -> list[str]:

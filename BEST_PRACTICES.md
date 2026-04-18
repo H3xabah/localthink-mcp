@@ -1,5 +1,5 @@
 # localthink-mcp Best Practices
-> v2.2 — 45 tools · 3-tier models · tiered CLAUDE.md · caching · parallel batch · multi-pass · smart buffer · scratchpad · settings GUI
+> v2.3 — 49 tools · 3-tier models · tiered CLAUDE.md · caching · parallel batch · multi-pass · smart buffer · scratchpad · settings GUI
 
 ---
 
@@ -12,9 +12,9 @@ Set your instruction tier with one command — Claude will route through localth
 cp -r claude-md/ ~/.claude/localthink/
 
 # Pick a tier
-python ~/.claude/localthink/set-tier.py full     # all 45 tools (~55 lines)
-python ~/.claude/localthink/set-tier.py half     # file reads + execution (~30 lines)
-python ~/.claude/localthink/set-tier.py quarter  # token-saving only (~12 lines)
+python ~/.claude/localthink/set-tier.py full     # all 49 tools (~60 lines)
+python ~/.claude/localthink/set-tier.py half     # file reads + execution (~35 lines)
+python ~/.claude/localthink/set-tier.py quarter  # token-saving only (~15 lines)
 
 # Check current tier
 python ~/.claude/localthink/set-tier.py
@@ -22,9 +22,9 @@ python ~/.claude/localthink/set-tier.py
 
 | Tier | Lines | Best for |
 |------|-------|----------|
-| `full` | ~55 | Complex projects, new codebases, research sessions |
-| `half` | ~30 | Daily dev work: file nav + CI filters |
-| `quarter` | ~12 | Minimal overhead — just prevent large file loads |
+| `full` | ~60 | Complex projects, new codebases, research sessions |
+| `half` | ~35 | Daily dev work: file nav + CI filters |
+| `quarter` | ~15 | Minimal overhead — just prevent large file loads |
 
 Switch at any time — the command edits `~/.claude/CLAUDE.md` in place without touching anything else.
 
@@ -32,7 +32,7 @@ Switch at any time — the command edits `~/.claude/CLAUDE.md` in place without 
 
 ## 2. Configuration
 
-**Quickest path:** call `local_config` from Claude Code — a GUI opens with all 18 settings across five tabs. Changes save to `~/.localthink-mcp/config.json` and hot-reload immediately (model/URL changes require a server reconnect).
+**Quickest path:** call `local_config` from Claude Code — a GUI opens with all 21 settings across five tabs. Changes save to `~/.localthink-mcp/config.json` and hot-reload immediately (model/URL changes require a server reconnect).
 
 **Initial setup via CLI** — set models inline at registration time, no file editing needed:
 
@@ -50,7 +50,7 @@ claude mcp add localthink \
 |------|---------|---------|---------------|
 | **MAIN** | `OLLAMA_MODEL` | All deep ops: summarize, answer, audit, pipeline | Largest model that fits comfortably |
 | **FAST** | `OLLAMA_FAST_MODEL` | Classify, outline, symbols, translate, schema_infer | One tier smaller than MAIN |
-| **TINY** | `OLLAMA_TINY_MODEL` | Gate, route decisions, trivial ops | Smallest available — `qwen2.5:3b` works for almost everyone |
+| **TINY** | `OLLAMA_TINY_MODEL` | Gate, trivial ops | Smallest available — `qwen2.5:3b` works for almost everyone |
 
 **Manual env vars** (for CI or headless environments):
 
@@ -63,6 +63,7 @@ claude mcp add localthink \
 | `LOCALTHINK_TINY_TIMEOUT` | `60` | Rarely needs changing |
 | `LOCALTHINK_HEALTH_TIMEOUT` | `2` | Leave as-is — just an Ollama ping |
 | `LOCALTHINK_CODE_SURFACE_TIMEOUT` | `600` | Raise to `900` for large TS/Go/Rust on slow hardware |
+| `LOCALTHINK_GIT_DIFF_TIMEOUT` | `30` | Subprocess timeout for local_git_diff |
 
 #### Limits
 
@@ -73,6 +74,7 @@ claude mcp add localthink \
 | `LOCALTHINK_MAX_SCAN_FILES` | `20` | Raise to `50`–`100` for large directory scans |
 | `LOCALTHINK_CLASSIFY_SAMPLE` | `8000` | Rarely needs changing |
 | `LOCALTHINK_MAX_CONCURRENCY` | `4` | `1`–`2` on low VRAM · `6`–`8` if Ollama handles parallel slots |
+| `LOCALTHINK_CHAT_HISTORY_CHARS` | `6000` | Max chars of history kept per local_chat turn |
 
 #### Cache
 
@@ -87,6 +89,7 @@ claude mcp add localthink \
 |---|---|---|
 | `LOCALTHINK_MEMO_DIR` | `~/.localthink-mcp` | Synced folder (Dropbox, OneDrive) to share notes across machines |
 | `LOCALTHINK_COMPACT_THRESHOLD` | `3000` | `1500` for faster reads · `5000` to keep more raw notes before compact |
+| `LOCALTHINK_MAX_NOTES` | `500` | Max entries in permanent notes index |
 
 **3-tier setup:**
 ```bash
@@ -101,6 +104,7 @@ export OLLAMA_TINY_MODEL="qwen2.5:3b"
 
 | Goal | Tool | Notes |
 |---|---|---|
+| Don't know which tool fits | `local_suggest(task, files?)` | Ordered call plan, cached |
 | Read large file without loading it | `local_answer(file, question)` | Cached by file mtime |
 | Compress file for repeated use | `local_shrink_file(file)` | Hold result in context |
 | List all definitions in a file | `local_symbols(file)` | Line numbers included |
@@ -121,6 +125,9 @@ export OLLAMA_TINY_MODEL="qwen2.5:3b"
 | Convert JSON↔YAML↔TOML | `local_translate(text, format)` | Lossless |
 | Compress a log file | `local_compress_log(file)` | < 5% of input lines |
 | Compress a stack trace | `local_compress_stack_trace(text)` | Root cause + 3-5 frames |
+| Exception / error root cause | `local_explain_error(error_text)` | Auto-detects file from trace |
+| Git changes semantic diff | `local_git_diff(repo?, ref?)` | Diff never enters context |
+| Session start context | `local_session_recall(task)` | Notes + checkpoint in one call |
 | Compress API response data | `local_compress_data(data)` | Sampled + stripped |
 | Compress a saved session | `local_session_compress(file)` | Re-entry briefing |
 | Compress a system prompt | `local_prompt_compress(text)` | 20-40% of original |
@@ -144,7 +151,7 @@ export OLLAMA_TINY_MODEL="qwen2.5:3b"
 | Check cache usage | `local_cache_stats()` | Size, TTL, location |
 | Clear cache | `local_cache_clear(older_than_days?)` | Full or selective |
 | List available models | `local_models()` | Verify server health |
-| Open settings GUI | `local_config()` | All 18 settings — Ollama, Timeouts, Limits, Cache, Memo |
+| Open settings GUI | `local_config()` | All 21 settings — Ollama, Timeouts, Limits, Cache, Memo |
 
 ---
 
@@ -292,10 +299,10 @@ local_config()
 | Tab | Settings |
 |-----|----------|
 | **Ollama** | Base URL + Test button · Default model · Fast model · Tiny model (all with live dropdown from running Ollama) |
-| **Timeouts** | Main (360 s) · Fast (180 s) · Tiny (60 s) · Health check (2 s) · code_surface (600 s) |
-| **Limits** | Max file size · Pipeline steps · Scan files · Classify sample · Batch concurrency |
+| **Timeouts** | Main (360 s) · Fast (180 s) · Tiny (60 s) · Health check (2 s) · code_surface (600 s) · git diff (30 s) |
+| **Limits** | Max file size · Pipeline steps · Scan files · Classify sample · Batch concurrency · Chat history limit (chars) |
 | **Cache** | Cache directory (Browse) · TTL days |
-| **Memo** | Memo directory (Browse) · Compact threshold |
+| **Memo** | Memo directory (Browse) · Compact threshold · Max notes |
 
 **How it works:**
 - Live Ollama probe on open — green dot if connected, red if not, shows model count
@@ -308,7 +315,7 @@ local_config()
 
 ---
 
-## 11. Full Tool List (v2.1 — 45 tools)
+## 11. Full Tool List (v2.3 — 49 tools)
 
 **Core Q&A / Compression:** `local_answer` · `local_summarize` · `local_extract` · `local_shrink_file` · `local_diff` · `local_diff_files` · `local_batch_answer`
 **Multi-step:** `local_pipeline` · `local_auto` · `local_chat`
@@ -322,6 +329,9 @@ local_config()
 **Model Notes:** `local_note_write` · `local_note_search`
 **Cache / Info:** `local_models` · `local_cache_stats` · `local_cache_clear`
 **Settings:** `local_config`
+
+### v2.3
+`local_suggest` · `local_explain_error` · `local_git_diff` · `local_session_recall`
 
 ---
 
@@ -366,3 +376,34 @@ Categories: `architecture` · `gotcha` · `pattern`
 ```bash
 export LOCALTHINK_CODE_SURFACE_TIMEOUT=900   # if your model is slow on large TS/Go/Rust files
 ```
+
+---
+
+## 13. v2.3 Diagnostics & intelligence
+
+### local_suggest — tool picker
+Call before any non-trivial session:
+```
+local_suggest("refactor the payment module", files=["src/payments/"])
+```
+Returns [{tool, reason, args_hint}] in call order. Cached by task+files hash.
+
+### local_explain_error — one-call debugging
+```
+local_explain_error(error_text)                     # auto-detects file from trace
+local_explain_error(error_text, "src/auth.py")      # explicit file
+local_explain_error(error_text, passes=2)           # higher-quality fix suggestion
+```
+
+### local_git_diff — semantic git diff
+```
+local_git_diff()                        # HEAD vs working tree
+local_git_diff(ref="main")             # branch vs main
+local_git_diff(focus="security")       # prioritise security changes
+```
+
+### local_session_recall — session start context
+```
+local_session_recall("add OAuth to the API")
+```
+Returns matching permanent notes + last checkpoint. Call once at session start.

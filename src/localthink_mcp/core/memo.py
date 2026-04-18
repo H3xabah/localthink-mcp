@@ -24,6 +24,7 @@ NOTES_DIR         = MEMO_DIR / "notes"
 NOTES_INDEX       = NOTES_DIR / "index.json"
 LAST_RUN_FILE     = MEMO_DIR / "last_run.json"
 COMPACT_THRESHOLD = int(os.environ.get("LOCALTHINK_COMPACT_THRESHOLD", "3000"))
+MAX_NOTES         = int(os.environ.get("LOCALTHINK_MAX_NOTES", "500"))
 VALID_SECTIONS    = {"decisions", "assumptions", "pitfalls", "open_questions"}
 VALID_CATEGORIES  = {"architecture", "gotcha", "pattern"}
 
@@ -31,7 +32,7 @@ VALID_CATEGORIES  = {"architecture", "gotcha", "pattern"}
 def reload_env() -> None:
     """Re-read memo env vars into module globals. Called by config.apply_config()."""
     global MEMO_DIR, CONTEXT_FILE, CHECKPOINT_FILE, NOTES_DIR, NOTES_INDEX
-    global LAST_RUN_FILE, COMPACT_THRESHOLD
+    global LAST_RUN_FILE, COMPACT_THRESHOLD, MAX_NOTES
     MEMO_DIR          = Path(os.environ.get("LOCALTHINK_MEMO_DIR", "") or Path.home() / ".localthink-mcp")
     CONTEXT_FILE      = MEMO_DIR / "CONTEXT.md"
     CHECKPOINT_FILE   = MEMO_DIR / "CHECKPOINT.md"
@@ -39,6 +40,7 @@ def reload_env() -> None:
     NOTES_INDEX       = NOTES_DIR / "index.json"
     LAST_RUN_FILE     = MEMO_DIR / "last_run.json"
     COMPACT_THRESHOLD = int(os.environ.get("LOCALTHINK_COMPACT_THRESHOLD", "3000"))
+    MAX_NOTES         = int(os.environ.get("LOCALTHINK_MAX_NOTES", "500"))
 
 
 def _ensure_dirs() -> None:
@@ -109,8 +111,6 @@ def memo_write(key: str, content: str, compress: bool = False) -> dict:
 
     _ensure_dirs()
 
-    # Re-evaluate paths in case LOCALTHINK_MEMO_DIR changed at runtime
-    ctx_file = MEMO_DIR / "CONTEXT.md"
     sections = _read_context()
 
     text = content
@@ -284,6 +284,8 @@ def note_write(category: str, content: str) -> dict:
         except Exception:
             index = []
     index.append({"id": note_id, "ts": iso, "category": category, "text": content})
+    if len(index) > MAX_NOTES:
+        index = index[-MAX_NOTES:]  # keep newest
     NOTES_INDEX.write_text(json.dumps(index, indent=2, ensure_ascii=False), encoding="utf-8")
 
     return {"written": True, "category": category, "note_id": note_id}

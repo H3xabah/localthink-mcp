@@ -8,6 +8,10 @@ Offloads large file queries and document processing to Ollama so they never burn
 > v1.2 adds **pre-injection**: `local_improve_prompt` and `local_preplan` run locally *before* Claude sees the task — sharpening prompts and scaffolding plans so Claude executes rather than guesses.
 > v2.1 adds **smart buffer**, **execution filters**, **session scratchpad**, **persistent notes**, **response refinement**, and a **disk-backed result cache** — 14 new tools, 45 total.
 > v2.2 adds the **tiered CLAUDE.md system** — switch between Full/Half/Quarter instruction sets with one command, replacing the old 102-line monolith with 12–55 lines depending on tier.
+> v2.3 adds **local_suggest** (intelligent tool picker), **local_explain_error**
+> (one-call debugging), **local_git_diff** (git-aware semantic diff), and
+> **local_session_recall** (auto-surface notes at session start) — 4 new tools, 49 total.
+> Includes thread-safe caching, Ollama error handling, and full doc consistency pass.
 
 ---
 
@@ -51,9 +55,9 @@ Instead of pasting a 102-line monolith into `CLAUDE.md`, pick a tier:
 
 | Tier | Lines in CLAUDE.md | Tools | Best for |
 |------|--------------------|-------|----------|
-| `full` | ~55 | All 45 | Complex projects, new codebases, research-heavy sessions |
-| `half` | ~30 | ~18 | Day-to-day dev: file nav + CI filters |
-| `quarter` | ~12 | ~6 | Minimal — just stop Claude loading big files |
+| `full` | ~60 | All 49 | Complex projects, new codebases, research-heavy sessions |
+| `half` | ~35 | ~22 | Day-to-day dev: file nav + CI filters |
+| `quarter` | ~15 | ~7 | Minimal — just stop Claude loading big files |
 
 ```bash
 python ~/.claude/localthink/set-tier.py full     # switch to full
@@ -73,7 +77,7 @@ See [`claude-md/`](claude-md/) and [`CLAUDE_MD_TEMPLATE.md`](CLAUDE_MD_TEMPLATE.
 
 ---
 
-## All 45 tools
+## All 49 tools
 
 ### v0.1.0 — Core compression
 
@@ -176,6 +180,15 @@ plan = local_preplan(
 | `local_timeline(text)` | Chronological event sequence from logs, changelogs, git log, or incident reports. Deduplicates repeated events. |
 | `local_diff_files(path_a, path_b, focus?)` | Diff two files by path — neither file loaded into context. Counterpart to `local_diff` which takes in-context text. |
 
+### v2.3 — Diagnostics, git integration, session intelligence
+
+| Tool | What it does |
+|------|--------------|
+| `local_suggest(task, files?)` | Returns an ordered call plan for any task — eliminates reasoning over 49 tool descriptions. Fast model; cached by task+files hash. |
+| `local_explain_error(error_text, file_path?, passes?)` | Root-causes an exception, shows the relevant code snippet, and suggests a fix. Auto-detects the implicated file from the stack trace. File never enters Claude's context. |
+| `local_git_diff(repo_path?, ref?, focus?)` | Semantic summary of git changes (default: HEAD vs working tree). Diff never enters Claude's context. Requires git in PATH. |
+| `local_session_recall(task, limit?)` | Search permanent notes + last checkpoint by task description. Call once at session start instead of manual local_note_search + file read. |
+
 ### v2.1 — Smart buffer, execution filters, scratchpad, notes, cache
 
 #### Smart Buffer (raw output triage)
@@ -211,7 +224,7 @@ plan = local_preplan(
 | `local_refine(prompt, draft, instructions?)` | Post-process an LLM draft through a refinement pass. Optional instructions target tone, brevity, or accuracy. |
 | `local_cache_stats()` | Show cache hit/miss counts, entry count, and total disk usage. |
 | `local_cache_clear()` | Evict all cached results. |
-| `local_config()` | Open the settings GUI — configure all 18 settings across Ollama, Timeouts, Limits, Cache, and Memo. Saves to `~/.localthink-mcp/config.json` and hot-reloads the running server. |
+| `local_config()` | Open the settings GUI — configure all 21 settings across Ollama, Timeouts, Limits, Cache, and Memo. Saves to `~/.localthink-mcp/config.json` and hot-reloads the running server. |
 
 ---
 
@@ -219,6 +232,7 @@ plan = local_preplan(
 
 | Situation | Tool |
 |-----------|------|
+| Don't know which tool to use | `local_suggest(task, files?)` |
 | File > 5 KB, one specific question | `local_answer` |
 | File > 5 KB, need to reference it multiple times | `local_shrink_file` |
 | Text already in context, want to compress it | `local_summarize` |
@@ -259,6 +273,9 @@ plan = local_preplan(
 | About to `/clear` — want to resume with full context | `local_memo_checkpoint` |
 | Want to save a pattern or gotcha for future sessions | `local_note_write` |
 | Starting a session — check for relevant prior notes | `local_note_search` |
+| Starting a session — notes + checkpoint in one call | `local_session_recall` |
+| Exception or stack trace to debug | `local_explain_error` |
+| Semantic diff of git changes | `local_git_diff` |
 | LLM draft needs a quality pass | `local_refine` |
 | Check or clear the result cache | `local_cache_stats` / `local_cache_clear` |
 | Change any setting via GUI | `local_config` |
@@ -316,10 +333,10 @@ A desktop window opens immediately — no terminal, no JSON editing.
 | Tab | Settings inside |
 |-----|----------------|
 | **Ollama** | Base URL · Default model · Fast model · Tiny model |
-| **Timeouts** | Main timeout · Fast timeout · Tiny timeout · Health check · code_surface timeout |
-| **Limits** | Max file bytes · Max pipeline steps · Max scan files · Classify sample size · Batch concurrency |
+| **Timeouts** | Main · Fast · Tiny · Health check · code_surface · git diff |
+| **Limits** | Max file bytes · Max pipeline steps · Max scan files · Classify sample · Batch concurrency · Chat history limit |
 | **Cache** | Cache directory · Cache TTL (days) |
-| **Memo** | Memo directory · Compact threshold |
+| **Memo** | Memo directory · Compact threshold · Max notes |
 
 **Status bar** — the bottom of the window shows a live Ollama probe: a green dot with your model count means Ollama is reachable. Red dot means it's not running (`ollama serve` to fix).
 
@@ -364,6 +381,7 @@ Settings are saved to `~/.localthink-mcp/config.json`. You can also set any valu
 | `LOCALTHINK_TINY_TIMEOUT` | `60` | Rarely needs changing |
 | `LOCALTHINK_HEALTH_TIMEOUT` | `2` | Leave at `2` — this is just an Ollama ping |
 | `LOCALTHINK_CODE_SURFACE_TIMEOUT` | `600` | Increase to `900` for large TS/Go/Rust files on slow hardware |
+| `LOCALTHINK_GIT_DIFF_TIMEOUT` | `30` | Subprocess timeout (s) for local_git_diff |
 
 ### Limits
 
@@ -374,6 +392,7 @@ Settings are saved to `~/.localthink-mcp/config.json`. You can also set any valu
 | `LOCALTHINK_MAX_SCAN_FILES` | `20` | Increase to `50`–`100` for large directory scans; watch memory |
 | `LOCALTHINK_CLASSIFY_SAMPLE` | `8000` | `8000` chars is enough for most inputs — rarely needs changing |
 | `LOCALTHINK_MAX_CONCURRENCY` | `4` | `1`–`2` on low VRAM · `4` default · `6`–`8` if Ollama handles parallel slots well |
+| `LOCALTHINK_CHAT_HISTORY_CHARS` | `6000` | Max chars of history kept per local_chat turn |
 
 ### Cache
 
@@ -388,6 +407,7 @@ Settings are saved to `~/.localthink-mcp/config.json`. You can also set any valu
 |---------|---------|-------------|
 | `LOCALTHINK_MEMO_DIR` | `~/.localthink-mcp` | Point to a synced folder (Dropbox, OneDrive) to share notes across machines |
 | `LOCALTHINK_COMPACT_THRESHOLD` | `3000` | `1500` for faster reads · `5000` to preserve more raw content before auto-compact |
+| `LOCALTHINK_MAX_NOTES` | `500` | Max entries in permanent notes index |
 
 ### Example: 3-tier model setup
 

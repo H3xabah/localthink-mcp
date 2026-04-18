@@ -22,3 +22,16 @@ htmlcov/
 
 .DS_Store
 Thumbs.db
+
+# Windows
+desktop.ini
+*.suo
+*.user
+
+# IDE
+.idea/
+.vscode/
+
+# localthink runtime state (never commit)
+.localthink-mcp/
+*.localthink-cache/

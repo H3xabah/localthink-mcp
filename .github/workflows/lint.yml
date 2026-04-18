@@ -1,0 +1,21 @@
+name: Lint
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install deps
+        run: pip install ruff mcp httpx
+      - name: Ruff check
+        run: ruff check src/
+      - name: Import check
+        run: python -c "from src.localthink_mcp.server import mcp; print('import OK')"

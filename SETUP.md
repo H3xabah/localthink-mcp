@@ -63,7 +63,7 @@ Substitute models for your hardware using the tier table below. Fine-tune everyt
 > **Three model tiers explained:**
 > - **MAIN** — all deep operations: summarize, answer, find_impl, pipeline, audit
 > - **FAST** — lightweight ops: classify, outline, symbols, code_surface, translate, schema_infer
-> - **TINY** — instant yes/no: gate, route decisions, hallucination check
+> - **TINY** — instant classification and gate ops
 
 ---
 
@@ -154,9 +154,9 @@ python %USERPROFILE%\.claude\localthink\set-tier.py full
 
 | Tier | Lines injected | Tools available | Best for |
 |------|----------------|-----------------|----------|
-| `full` | ~55 | All 45 | Complex projects, new codebases |
-| `half` | ~30 | ~18 | Daily dev: file nav + CI filters |
-| `quarter` | ~12 | ~6 | Minimal — just stop big-file loads |
+| `full` | ~60 | All 49 | Complex projects, new codebases |
+| `half` | ~35 | ~22 | Daily dev: file nav + CI filters |
+| `quarter` | ~15 | ~7 | Minimal — just stop big-file loads |
 
 Switch at any time:
 ```bash
@@ -337,7 +337,7 @@ claude mcp add localthink \
 
 ## Configuring after install — local_config GUI
 
-All 18 settings are available in the GUI. Type this in Claude Code:
+All 21 settings are available in the GUI. Type this in Claude Code:
 
 ```
 local_config
@@ -349,9 +349,9 @@ A desktop window opens immediately — no terminal, no file editing.
 |-----|--------------------|
 | **Ollama** | Base URL · MAIN model · FAST model · TINY model |
 | **Timeouts** | Per-tier response timeouts · health check · code_surface timeout |
-| **Limits** | Max file bytes · pipeline steps · scan files · classify sample · concurrency |
+| **Limits** | Max file bytes · pipeline steps · scan files · classify sample · concurrency · chat history limit |
 | **Cache** | Cache directory · TTL (days) |
-| **Memo** | Scratchpad directory · auto-compact threshold |
+| **Memo** | Scratchpad directory · auto-compact threshold · max notes |
 
 **Key settings to tune for your hardware:**
 
