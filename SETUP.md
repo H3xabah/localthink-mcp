@@ -14,7 +14,7 @@ ollama pull qwen2.5:3b
 # 2. Register with Claude Code — models set inline, nothing to edit
 claude mcp add localthink \
   --env OLLAMA_MODEL="qwen2.5:14b-instruct-q4_K_M" \
-  --env OLLAMA_FAST_MODEL="qwen2.5:3b" \
+  --env OLLAMA_FAST_MODEL="qwen2.5:7b-instruct-q4_K_M" \
   --env OLLAMA_TINY_MODEL="qwen2.5:3b" \
   -- uvx localthink-mcp
 
@@ -30,7 +30,7 @@ claude mcp list   # localthink → Connected
 ```bash
 claude mcp add --transport stdio localthink ^
   --env OLLAMA_MODEL="qwen2.5:14b-instruct-q4_K_M" ^
-  --env OLLAMA_FAST_MODEL="qwen2.5:3b" ^
+  --env OLLAMA_FAST_MODEL="qwen2.5:7b-instruct-q4_K_M" ^
   --env OLLAMA_TINY_MODEL="qwen2.5:3b" ^
   -- cmd /c uvx localthink-mcp
 
@@ -46,18 +46,18 @@ Substitute models for your hardware using the tier table below. Fine-tune everyt
 
 | Tier | Hardware | MAIN model | FAST model | TINY model | Speed (tok/s) |
 |------|----------|-----------|------------|------------|---------------|
-| A | CPU · 16 GB RAM | `qwen2.5:7b-instruct-q4_K_M` | `qwen2.5:1.5b` | `qwen2.5:1.5b` | 3-8 |
-| A+ | CPU · 32 GB RAM | `qwen2.5:14b-instruct-q4_K_M` | `qwen2.5:3b` | `qwen2.5:3b` | 2-5 |
-| B | 4 GB VRAM | `qwen2.5:7b-instruct-q4_K_M` | `qwen2.5:1.5b` | `qwen2.5:1.5b` | 20-40 |
-| C | 6 GB VRAM | `qwen2.5:7b-instruct-q6_K` | `qwen2.5:3b` | `qwen2.5:3b` | 25-45 |
-| D | 8 GB VRAM | `qwen2.5:7b-instruct-q8_0` | `qwen2.5:3b` | `qwen2.5:3b` | 30-55 |
-| E | 10-12 GB VRAM | `qwen2.5:14b-instruct-q4_K_M` | `qwen2.5:3b` | `qwen2.5:3b` | 20-40 |
+| A | CPU · 16 GB RAM | `qwen2.5:7b-instruct-q4_K_M` | `qwen2.5:3b` | `qwen2.5:1.5b` | 3-8 |
+| A+ | CPU · 32 GB RAM | `qwen2.5:14b-instruct-q4_K_M` | `qwen2.5:7b-instruct-q4_K_M` | `qwen2.5:3b` | 2-5 |
+| B | 4 GB VRAM | `qwen2.5:7b-instruct-q4_K_M` | `qwen2.5:3b` | `qwen2.5:1.5b` | 20-40 |
+| C | 6 GB VRAM | `qwen2.5:7b-instruct-q6_K` | `qwen2.5:3b` | `qwen2.5:1.5b` | 25-45 |
+| D | 8 GB VRAM | `qwen2.5:7b-instruct-q8_0` | `qwen2.5:3b` | `qwen2.5:1.5b` | 30-55 |
+| E | 10-12 GB VRAM | `qwen2.5:14b-instruct-q4_K_M` | `qwen2.5:7b-instruct-q4_K_M` | `qwen2.5:3b` | 20-40 |
 | F | 16-20 GB VRAM | `qwen2.5:14b-instruct-q8_0` | `qwen2.5:7b-instruct-q4_K_M` | `qwen2.5:3b` | 20-35 |
-| G | 24 GB VRAM | `qwen2.5:32b-instruct-q4_K_M` | `qwen2.5:7b-instruct-q4_K_M` | `qwen2.5:3b` | 15-30 |
+| G | 24 GB VRAM | `qwen2.5:32b-instruct-q4_K_M` | `qwen2.5:7b-instruct-q8_0` | `qwen2.5:3b` | 15-30 |
 | H | 48 GB+ VRAM | `qwen2.5:72b-instruct-q4_K_M` | `qwen2.5:14b-instruct-q4_K_M` | `qwen2.5:3b` | 8-18 |
-| Apple M · 8 GB | M1/M2/M3 base | `qwen2.5:7b-instruct-q4_K_M` | `qwen2.5:1.5b` | `qwen2.5:1.5b` | 15-30 |
-| Apple M · 16-24 GB | M Pro | `qwen2.5:14b-instruct-q4_K_M` | `qwen2.5:3b` | `qwen2.5:3b` | 20-45 |
-| Apple M · 32-40 GB | M Max | `qwen2.5:32b-instruct-q4_K_M` | `qwen2.5:7b-instruct-q4_K_M` | `qwen2.5:3b` | 15-30 |
+| Apple M · 8 GB | M1/M2/M3 base | `qwen2.5:7b-instruct-q4_K_M` | `qwen2.5:3b` | `qwen2.5:1.5b` | 15-30 |
+| Apple M · 16-24 GB | M Pro | `qwen2.5:14b-instruct-q4_K_M` | `qwen2.5:7b-instruct-q4_K_M` | `qwen2.5:3b` | 20-45 |
+| Apple M · 32-40 GB | M Max | `qwen2.5:32b-instruct-q4_K_M` | `qwen2.5:7b-instruct-q8_0` | `qwen2.5:3b` | 15-30 |
 | Apple M · 64+ GB | M Ultra | `qwen2.5:72b-instruct-q4_K_M` | `qwen2.5:14b-instruct-q4_K_M` | `qwen2.5:3b` | 10-25 |
 
 > **Three model tiers explained:**
@@ -101,13 +101,14 @@ Find your tier in the table above and run one `ollama pull` per model:
 ```bash
 # Example: Tier E (10-12 GB VRAM)
 ollama pull qwen2.5:14b-instruct-q4_K_M   # MAIN
-ollama pull qwen2.5:3b                     # FAST + TINY
+ollama pull qwen2.5:7b-instruct-q4_K_M   # FAST
+ollama pull qwen2.5:3b                     # TINY
 ```
 
 ```bash
 # Example: Tier G (24 GB VRAM)
 ollama pull qwen2.5:32b-instruct-q4_K_M   # MAIN
-ollama pull qwen2.5:7b-instruct-q4_K_M    # FAST
+ollama pull qwen2.5:7b-instruct-q8_0      # FAST
 ollama pull qwen2.5:3b                     # TINY
 ```
 
@@ -178,11 +179,12 @@ claude mcp list        # localthink → Connected
 ### Tier A — CPU · 16 GB RAM
 ```bash
 ollama pull qwen2.5:7b-instruct-q4_K_M
+ollama pull qwen2.5:3b
 ollama pull qwen2.5:1.5b
 
 claude mcp add localthink \
   --env OLLAMA_MODEL="qwen2.5:7b-instruct-q4_K_M" \
-  --env OLLAMA_FAST_MODEL="qwen2.5:1.5b" \
+  --env OLLAMA_FAST_MODEL="qwen2.5:3b" \
   --env OLLAMA_TINY_MODEL="qwen2.5:1.5b" \
   -- uvx localthink-mcp
 ```
@@ -191,11 +193,12 @@ claude mcp add localthink \
 ### Tier A+ — CPU · 32 GB RAM
 ```bash
 ollama pull qwen2.5:14b-instruct-q4_K_M
+ollama pull qwen2.5:7b-instruct-q4_K_M
 ollama pull qwen2.5:3b
 
 claude mcp add localthink \
   --env OLLAMA_MODEL="qwen2.5:14b-instruct-q4_K_M" \
-  --env OLLAMA_FAST_MODEL="qwen2.5:3b" \
+  --env OLLAMA_FAST_MODEL="qwen2.5:7b-instruct-q4_K_M" \
   --env OLLAMA_TINY_MODEL="qwen2.5:3b" \
   -- uvx localthink-mcp
 ```
@@ -203,11 +206,12 @@ claude mcp add localthink \
 ### Tier B — 4 GB VRAM (GTX 1650, RX 580)
 ```bash
 ollama pull qwen2.5:7b-instruct-q4_K_M
+ollama pull qwen2.5:3b
 ollama pull qwen2.5:1.5b
 
 claude mcp add localthink \
   --env OLLAMA_MODEL="qwen2.5:7b-instruct-q4_K_M" \
-  --env OLLAMA_FAST_MODEL="qwen2.5:1.5b" \
+  --env OLLAMA_FAST_MODEL="qwen2.5:3b" \
   --env OLLAMA_TINY_MODEL="qwen2.5:1.5b" \
   -- uvx localthink-mcp
 ```
@@ -217,11 +221,12 @@ claude mcp add localthink \
 ```bash
 ollama pull qwen2.5:7b-instruct-q6_K
 ollama pull qwen2.5:3b
+ollama pull qwen2.5:1.5b
 
 claude mcp add localthink \
   --env OLLAMA_MODEL="qwen2.5:7b-instruct-q6_K" \
   --env OLLAMA_FAST_MODEL="qwen2.5:3b" \
-  --env OLLAMA_TINY_MODEL="qwen2.5:3b" \
+  --env OLLAMA_TINY_MODEL="qwen2.5:1.5b" \
   -- uvx localthink-mcp
 ```
 
@@ -229,11 +234,12 @@ claude mcp add localthink \
 ```bash
 ollama pull qwen2.5:7b-instruct-q8_0
 ollama pull qwen2.5:3b
+ollama pull qwen2.5:1.5b
 
 claude mcp add localthink \
   --env OLLAMA_MODEL="qwen2.5:7b-instruct-q8_0" \
   --env OLLAMA_FAST_MODEL="qwen2.5:3b" \
-  --env OLLAMA_TINY_MODEL="qwen2.5:3b" \
+  --env OLLAMA_TINY_MODEL="qwen2.5:1.5b" \
   -- uvx localthink-mcp
 ```
 *Q8_0 is near-lossless quality at 7B — the sweet spot for this VRAM tier.*
@@ -241,15 +247,15 @@ claude mcp add localthink \
 ### Tier E — 10-12 GB VRAM (RTX 3080, RTX 4070)
 ```bash
 ollama pull qwen2.5:14b-instruct-q4_K_M
+ollama pull qwen2.5:7b-instruct-q4_K_M
 ollama pull qwen2.5:3b
 
 claude mcp add localthink \
   --env OLLAMA_MODEL="qwen2.5:14b-instruct-q4_K_M" \
-  --env OLLAMA_FAST_MODEL="qwen2.5:3b" \
+  --env OLLAMA_FAST_MODEL="qwen2.5:7b-instruct-q4_K_M" \
   --env OLLAMA_TINY_MODEL="qwen2.5:3b" \
   -- uvx localthink-mcp
 ```
-*Optional upgrade: pull `qwen2.5:7b-instruct-q4_K_M` and set it as FAST in local_config for better classify/outline quality.*
 
 ### Tier F — 16-20 GB VRAM (RTX 4080, A5000)
 ```bash
@@ -267,12 +273,12 @@ claude mcp add localthink \
 ### Tier G — 24 GB VRAM (RTX 3090, RTX 4090)
 ```bash
 ollama pull qwen2.5:32b-instruct-q4_K_M
-ollama pull qwen2.5:7b-instruct-q4_K_M
+ollama pull qwen2.5:7b-instruct-q8_0
 ollama pull qwen2.5:3b
 
 claude mcp add localthink \
   --env OLLAMA_MODEL="qwen2.5:32b-instruct-q4_K_M" \
-  --env OLLAMA_FAST_MODEL="qwen2.5:7b-instruct-q4_K_M" \
+  --env OLLAMA_FAST_MODEL="qwen2.5:7b-instruct-q8_0" \
   --env OLLAMA_TINY_MODEL="qwen2.5:3b" \
   -- uvx localthink-mcp
 ```
@@ -295,26 +301,26 @@ claude mcp add localthink \
 
 ```bash
 # M1/M2/M3 — 8 GB
-ollama pull qwen2.5:7b-instruct-q4_K_M && ollama pull qwen2.5:1.5b
+ollama pull qwen2.5:7b-instruct-q4_K_M && ollama pull qwen2.5:3b && ollama pull qwen2.5:1.5b
 claude mcp add localthink \
   --env OLLAMA_MODEL="qwen2.5:7b-instruct-q4_K_M" \
-  --env OLLAMA_FAST_MODEL="qwen2.5:1.5b" \
+  --env OLLAMA_FAST_MODEL="qwen2.5:3b" \
   --env OLLAMA_TINY_MODEL="qwen2.5:1.5b" \
   -- uvx localthink-mcp
 
 # M Pro — 16-24 GB
-ollama pull qwen2.5:14b-instruct-q4_K_M && ollama pull qwen2.5:3b
+ollama pull qwen2.5:14b-instruct-q4_K_M && ollama pull qwen2.5:7b-instruct-q4_K_M && ollama pull qwen2.5:3b
 claude mcp add localthink \
   --env OLLAMA_MODEL="qwen2.5:14b-instruct-q4_K_M" \
-  --env OLLAMA_FAST_MODEL="qwen2.5:3b" \
+  --env OLLAMA_FAST_MODEL="qwen2.5:7b-instruct-q4_K_M" \
   --env OLLAMA_TINY_MODEL="qwen2.5:3b" \
   -- uvx localthink-mcp
 
 # M Max — 32-40 GB
-ollama pull qwen2.5:32b-instruct-q4_K_M && ollama pull qwen2.5:7b-instruct-q4_K_M && ollama pull qwen2.5:3b
+ollama pull qwen2.5:32b-instruct-q4_K_M && ollama pull qwen2.5:7b-instruct-q8_0 && ollama pull qwen2.5:3b
 claude mcp add localthink \
   --env OLLAMA_MODEL="qwen2.5:32b-instruct-q4_K_M" \
-  --env OLLAMA_FAST_MODEL="qwen2.5:7b-instruct-q4_K_M" \
+  --env OLLAMA_FAST_MODEL="qwen2.5:7b-instruct-q8_0" \
   --env OLLAMA_TINY_MODEL="qwen2.5:3b" \
   -- uvx localthink-mcp
 

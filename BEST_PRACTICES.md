@@ -246,19 +246,23 @@ local_improve_prompt("make the login faster",
 
 ## 8. Model Recommendations by Hardware
 
-| VRAM | OLLAMA_MODEL | OLLAMA_FAST_MODEL |
-|---|---|---|
-| CPU / < 4 GB | `qwen2.5:3b-instruct-q4_K_M` | same |
-| 4–6 GB | `qwen2.5:7b-instruct-q4_K_M` | same |
-| 8–10 GB | `qwen2.5:14b-instruct-q4_K_M` | `qwen2.5:7b-instruct-q4_K_M` |
-| 12–16 GB | `qwen2.5:14b-instruct-q6_K` | `qwen2.5:7b-instruct-q4_K_M` |
-| 24 GB+ | `qwen2.5:32b-instruct-q4_K_M` | `qwen2.5:14b-instruct-q4_K_M` |
-| Apple M-series | `qwen2.5:14b-instruct-q6_K` | `qwen2.5:7b-instruct-q4_K_M` |
+| VRAM | MAIN (`OLLAMA_MODEL`) | FAST (`OLLAMA_FAST_MODEL`) | TINY (`OLLAMA_TINY_MODEL`) |
+|---|---|---|---|
+| CPU · 16 GB RAM | `qwen2.5:7b-instruct-q4_K_M` | `qwen2.5:3b` | `qwen2.5:1.5b` |
+| CPU · 32 GB RAM | `qwen2.5:14b-instruct-q4_K_M` | `qwen2.5:7b-instruct-q4_K_M` | `qwen2.5:3b` |
+| 4 GB VRAM | `qwen2.5:7b-instruct-q4_K_M` | `qwen2.5:3b` | `qwen2.5:1.5b` |
+| 6 GB VRAM | `qwen2.5:7b-instruct-q6_K` | `qwen2.5:3b` | `qwen2.5:1.5b` |
+| 8 GB VRAM | `qwen2.5:7b-instruct-q8_0` | `qwen2.5:3b` | `qwen2.5:1.5b` |
+| 10-12 GB VRAM | `qwen2.5:14b-instruct-q4_K_M` | `qwen2.5:7b-instruct-q4_K_M` | `qwen2.5:3b` |
+| 16-20 GB VRAM | `qwen2.5:14b-instruct-q8_0` | `qwen2.5:7b-instruct-q4_K_M` | `qwen2.5:3b` |
+| 24 GB VRAM | `qwen2.5:32b-instruct-q4_K_M` | `qwen2.5:7b-instruct-q8_0` | `qwen2.5:3b` |
+| 48 GB+ VRAM | `qwen2.5:72b-instruct-q4_K_M` | `qwen2.5:14b-instruct-q4_K_M` | `qwen2.5:3b` |
+| Apple M · 8 GB | `qwen2.5:7b-instruct-q4_K_M` | `qwen2.5:3b` | `qwen2.5:1.5b` |
+| Apple M · 16-24 GB | `qwen2.5:14b-instruct-q4_K_M` | `qwen2.5:7b-instruct-q4_K_M` | `qwen2.5:3b` |
+| Apple M · 32-40 GB | `qwen2.5:32b-instruct-q4_K_M` | `qwen2.5:7b-instruct-q8_0` | `qwen2.5:3b` |
+| Apple M · 64+ GB | `qwen2.5:72b-instruct-q4_K_M` | `qwen2.5:14b-instruct-q4_K_M` | `qwen2.5:3b` |
 
-```bash
-ollama pull qwen2.5:14b-instruct-q4_K_M
-local_models()   # verify
-```
+See [SETUP.md](SETUP.md) for exact `ollama pull` commands per tier. Verify with `local_models()`.
 
 ---
 

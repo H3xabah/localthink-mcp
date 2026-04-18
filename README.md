@@ -14,21 +14,22 @@ Offloads large file queries and document processing to Ollama so they never burn
 ## Quick start
 
 ```bash
-# 1. Pull models for your hardware (example: 10-12 GB VRAM)
+# 1. Pull models for your hardware (example: 10-12 GB VRAM — Tier E)
 ollama pull qwen2.5:14b-instruct-q4_K_M   # MAIN — deep ops
-ollama pull qwen2.5:3b                     # FAST + TINY — lightweight/instant ops
+ollama pull qwen2.5:7b-instruct-q4_K_M    # FAST — lightweight ops
+ollama pull qwen2.5:3b                     # TINY — instant/gate ops
 
 # 2. Register with Claude Code — models set inline, no config editing
 claude mcp add localthink \
   --env OLLAMA_MODEL="qwen2.5:14b-instruct-q4_K_M" \
-  --env OLLAMA_FAST_MODEL="qwen2.5:3b" \
+  --env OLLAMA_FAST_MODEL="qwen2.5:7b-instruct-q4_K_M" \
   --env OLLAMA_TINY_MODEL="qwen2.5:3b" \
   -- uvx localthink-mcp
 
 # Windows:
 # claude mcp add --transport stdio localthink ^
 #   --env OLLAMA_MODEL="qwen2.5:14b-instruct-q4_K_M" ^
-#   --env OLLAMA_FAST_MODEL="qwen2.5:3b" ^
+#   --env OLLAMA_FAST_MODEL="qwen2.5:7b-instruct-q4_K_M" ^
 #   --env OLLAMA_TINY_MODEL="qwen2.5:3b" ^
 #   -- cmd /c uvx localthink-mcp
 
@@ -410,7 +411,7 @@ Change models any time with `local_config` (Ollama tab → Save → reconnect MC
 ```bash
 claude mcp add localthink \
   --env OLLAMA_MODEL="qwen2.5:14b-instruct-q4_K_M" \
-  --env OLLAMA_FAST_MODEL="qwen2.5:3b" \
+  --env OLLAMA_FAST_MODEL="qwen2.5:7b-instruct-q4_K_M" \
   --env OLLAMA_TINY_MODEL="qwen2.5:3b" \
   -- uvx localthink-mcp
 ```
@@ -421,7 +422,7 @@ claude mcp add localthink \
 pip install localthink-mcp
 claude mcp add localthink \
   --env OLLAMA_MODEL="qwen2.5:14b-instruct-q4_K_M" \
-  --env OLLAMA_FAST_MODEL="qwen2.5:3b" \
+  --env OLLAMA_FAST_MODEL="qwen2.5:7b-instruct-q4_K_M" \
   --env OLLAMA_TINY_MODEL="qwen2.5:3b" \
   -- localthink-mcp
 ```
@@ -431,7 +432,7 @@ claude mcp add localthink \
 ```bash
 claude mcp add --transport stdio localthink ^
   --env OLLAMA_MODEL="qwen2.5:14b-instruct-q4_K_M" ^
-  --env OLLAMA_FAST_MODEL="qwen2.5:3b" ^
+  --env OLLAMA_FAST_MODEL="qwen2.5:7b-instruct-q4_K_M" ^
   --env OLLAMA_TINY_MODEL="qwen2.5:3b" ^
   -- cmd /c uvx localthink-mcp
 ```

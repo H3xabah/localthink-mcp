@@ -16,21 +16,22 @@ Three model tiers route work to the right-sized model automatically:
 ## Installation
 
 ```bash
-# 1. Pull models for your hardware (example: 10-12 GB VRAM)
+# 1. Pull models for your hardware (example: 10-12 GB VRAM — Tier E)
 ollama pull qwen2.5:14b-instruct-q4_K_M
+ollama pull qwen2.5:7b-instruct-q4_K_M
 ollama pull qwen2.5:3b
 
 # 2. Register with Claude Code — models set inline
 claude mcp add localthink \
   --env OLLAMA_MODEL="qwen2.5:14b-instruct-q4_K_M" \
-  --env OLLAMA_FAST_MODEL="qwen2.5:3b" \
+  --env OLLAMA_FAST_MODEL="qwen2.5:7b-instruct-q4_K_M" \
   --env OLLAMA_TINY_MODEL="qwen2.5:3b" \
   -- uvx localthink-mcp
 
 # Windows:
 # claude mcp add --transport stdio localthink ^
 #   --env OLLAMA_MODEL="qwen2.5:14b-instruct-q4_K_M" ^
-#   --env OLLAMA_FAST_MODEL="qwen2.5:3b" ^
+#   --env OLLAMA_FAST_MODEL="qwen2.5:7b-instruct-q4_K_M" ^
 #   --env OLLAMA_TINY_MODEL="qwen2.5:3b" ^
 #   -- cmd /c uvx localthink-mcp
 
