@@ -3,6 +3,31 @@
 All notable changes to this project will be documented in this file.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
+## [2.2.0] — 2026-04-17
+
+### Added
+
+**Tiered CLAUDE.md Instruction System (`claude-md/`):**
+
+Replaces the old 102-line monolithic `CLAUDE_MD_TEMPLATE.md` with three progressively smaller
+instruction tiers plus a one-command switcher. Tier content is injected directly into
+`CLAUDE.md` — no runtime imports, no extra files loaded at session start.
+
+- `claude-md/tier-full.md` — All 45 tools, full rules (~55 lines)
+- `claude-md/tier-half.md` — File reads + execution filters + session scratchpad (~30 lines)
+- `claude-md/tier-quarter.md` — Token-saving essentials only: answer/compress/gate (~12 lines)
+- `claude-md/set-tier.py` — CLI switcher; edits `~/.claude/CLAUDE.md` in place
+
+Token savings per tier vs old monolith (102 lines): full −46%, half −71%, quarter −88%.
+
+**`set-tier.py` details:**
+- `python set-tier.py [full|half|quarter]` — swap tier, print transition with line count
+- `python set-tier.py` (no args) — show current tier, block size, file paths, all options
+- Uses `<!-- localthink-tier-start/end -->` bookmarks — never touches anything else in CLAUDE.md
+- First run: auto-strips any existing unmanaged localthink section before inserting
+
+**`CLAUDE_MD_TEMPLATE.md` rewritten** to document the tier system, quick start, tier comparison table, and switcher usage.
+
 ## [2.1.1] — 2026-04-17
 
 ### Added

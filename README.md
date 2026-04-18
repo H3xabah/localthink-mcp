@@ -7,6 +7,7 @@ Offloads large file queries and document processing to Ollama so they never burn
 > v1.1 adds 13 new tools covering every major token-waste pattern.
 > v1.2 adds **pre-injection**: `local_improve_prompt` and `local_preplan` run locally *before* Claude sees the task — sharpening prompts and scaffolding plans so Claude executes rather than guesses.
 > v2.1 adds **smart buffer**, **execution filters**, **session scratchpad**, **persistent notes**, **response refinement**, and a **disk-backed result cache** — 14 new tools, 45 total.
+> v2.2 adds the **tiered CLAUDE.md system** — switch between Full/Half/Quarter instruction sets with one command, replacing the old 102-line monolith with 12–55 lines depending on tier.
 
 ---
 
@@ -22,6 +23,34 @@ claude mcp add localthink -- uvx localthink-mcp
 # 3. Verify
 claude mcp list   # localthink → Connected
 ```
+
+---
+
+## Tiered CLAUDE.md Instructions
+
+Instead of pasting a 102-line monolith into `CLAUDE.md`, pick a tier:
+
+| Tier | Lines in CLAUDE.md | Tools | Best for |
+|------|--------------------|-------|----------|
+| `full` | ~55 | All 45 | Complex projects, new codebases, research-heavy sessions |
+| `half` | ~30 | ~18 | Day-to-day dev: file nav + CI filters |
+| `quarter` | ~12 | ~6 | Minimal — just stop Claude loading big files |
+
+```bash
+# Copy the tier files once
+cp -r claude-md/ ~/.claude/localthink/
+
+# Set your tier (edits ~/.claude/CLAUDE.md in place)
+python ~/.claude/localthink/set-tier.py full
+
+# Switch at any time
+python ~/.claude/localthink/set-tier.py half
+
+# Check current tier
+python ~/.claude/localthink/set-tier.py
+```
+
+See [`claude-md/`](claude-md/) for the tier files and [`CLAUDE_MD_TEMPLATE.md`](CLAUDE_MD_TEMPLATE.md) for full documentation.
 
 ---
 
