@@ -1,29 +1,58 @@
 # localthink-mcp Best Practices
-> v2.1 — 45 tools · caching · parallel batch · multi-pass · 3-tier models · smart buffer · scratchpad · settings GUI
+> v2.2 — 45 tools · 3-tier models · tiered CLAUDE.md · caching · parallel batch · multi-pass · smart buffer · scratchpad · settings GUI
 
 ---
 
-## 1. Locking Tool Usage in CLAUDE.md
+## 1. CLAUDE.md Instruction Tier
 
-Paste the block from `CLAUDE_MD_TEMPLATE.md` into `~/.claude/CLAUDE.md` (global) or a project `CLAUDE.md`.
-This makes Claude route through localthink automatically without being asked.
+Set your instruction tier with one command — Claude will route through localthink automatically without being asked:
+
+```bash
+# Copy tier files once (from the repo's claude-md/ directory)
+cp -r claude-md/ ~/.claude/localthink/
+
+# Pick a tier
+python ~/.claude/localthink/set-tier.py full     # all 45 tools (~55 lines)
+python ~/.claude/localthink/set-tier.py half     # file reads + execution (~30 lines)
+python ~/.claude/localthink/set-tier.py quarter  # token-saving only (~12 lines)
+
+# Check current tier
+python ~/.claude/localthink/set-tier.py
+```
+
+| Tier | Lines | Best for |
+|------|-------|----------|
+| `full` | ~55 | Complex projects, new codebases, research sessions |
+| `half` | ~30 | Daily dev work: file nav + CI filters |
+| `quarter` | ~12 | Minimal overhead — just prevent large file loads |
+
+Switch at any time — the command edits `~/.claude/CLAUDE.md` in place without touching anything else.
 
 ---
 
 ## 2. Configuration
 
-**Quickest path:** call `local_config` from Claude Code — a GUI opens with all 18 settings organised into tabs. Changes are saved to `~/.localthink-mcp/config.json` and take effect immediately (Ollama URL/model changes require a server restart).
+**Quickest path:** call `local_config` from Claude Code — a GUI opens with all 18 settings across five tabs. Changes save to `~/.localthink-mcp/config.json` and hot-reload immediately (model/URL changes require a server reconnect).
 
-**Manual env vars** (for CI or when the GUI isn't available):
+**Initial setup via CLI** — set models inline at registration time, no file editing needed:
 
-#### Ollama
+```bash
+claude mcp add localthink \
+  --env OLLAMA_MODEL="qwen2.5:14b-instruct-q4_K_M" \
+  --env OLLAMA_FAST_MODEL="qwen2.5:7b-instruct-q4_K_M" \
+  --env OLLAMA_TINY_MODEL="qwen2.5:3b" \
+  -- uvx localthink-mcp
+```
 
-| Variable | Default | What to set |
-|---|---|---|
-| `OLLAMA_BASE_URL` | `http://localhost:11434` | Remote Ollama: `http://192.168.1.x:11434` |
-| `OLLAMA_MODEL` | `qwen2.5:14b-instruct-q4_K_M` | Match your VRAM tier — see SETUP.md |
-| `OLLAMA_FAST_MODEL` | *(same as MODEL)* | One tier smaller than MODEL — used for classify, outline, translate |
-| `OLLAMA_TINY_MODEL` | *(same as FAST)* | Smallest fast model, e.g. `qwen2.5:3b` — used for trivial ops |
+**Three model tiers — set at registration or change live in local_config:**
+
+| Role | Env var | Used by | Rule of thumb |
+|------|---------|---------|---------------|
+| **MAIN** | `OLLAMA_MODEL` | All deep ops: summarize, answer, audit, pipeline | Largest model that fits comfortably |
+| **FAST** | `OLLAMA_FAST_MODEL` | Classify, outline, symbols, translate, schema_infer | One tier smaller than MAIN |
+| **TINY** | `OLLAMA_TINY_MODEL` | Gate, route decisions, trivial ops | Smallest available — `qwen2.5:3b` works for almost everyone |
+
+**Manual env vars** (for CI or headless environments):
 
 #### Timeouts (seconds)
 

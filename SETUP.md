@@ -1,37 +1,77 @@
-# Localthink MCP — Hardware Setup Guide
+# Localthink MCP — Setup Guide
 
-Pick your tier, run the two pull commands, set the two env vars. Done.
-
----
-
-## Quick-reference table
-
-| Tier | Hardware | `OLLAMA_MODEL` | `OLLAMA_FAST_MODEL` | Speed (tok/s) | Quality |
-|------|----------|----------------|---------------------|---------------|---------|
-| A | CPU only — 16 GB RAM | `qwen2.5:7b-instruct-q4_K_M` | `qwen2.5:1.5b` | 3-8 | ★★☆☆☆ |
-| A+ | CPU only — 32 GB RAM | `qwen2.5:14b-instruct-q4_K_M` | `qwen2.5:3b` | 2-5 | ★★★☆☆ |
-| B | 4 GB VRAM | `qwen2.5:7b-instruct-q4_K_M` | `qwen2.5:1.5b` | 20-40 | ★★☆☆☆ |
-| C | 6 GB VRAM | `qwen2.5:7b-instruct-q6_K` | `qwen2.5:3b` | 25-45 | ★★★☆☆ |
-| D | 8 GB VRAM | `qwen2.5:7b-instruct-q8_0` | `qwen2.5:3b` | 30-55 | ★★★★☆ |
-| E | 10-12 GB VRAM | `qwen2.5:14b-instruct-q4_K_M` | `qwen2.5:3b` | 20-40 | ★★★★☆ |
-| F | 16-20 GB VRAM | `qwen2.5:14b-instruct-q8_0` | `qwen2.5:7b-instruct-q4_K_M` | 20-35 | ★★★★★ |
-| G | 24 GB VRAM | `qwen2.5:32b-instruct-q4_K_M` | `qwen2.5:7b-instruct-q4_K_M` | 15-30 | ★★★★★ |
-| H | 48 GB+ VRAM | `qwen2.5:72b-instruct-q4_K_M` | `qwen2.5:14b-instruct-q4_K_M` | 8-18 | ★★★★★ |
-| Apple M (8 GB) | M1/M2/M3 base | `qwen2.5:7b-instruct-q4_K_M` | `qwen2.5:1.5b` | 15-30 | ★★☆☆☆ |
-| Apple M (16-24 GB) | M Pro / M1 Max | `qwen2.5:14b-instruct-q4_K_M` | `qwen2.5:3b` | 20-45 | ★★★★☆ |
-| Apple M (32-40 GB) | M Max | `qwen2.5:32b-instruct-q4_K_M` | `qwen2.5:7b-instruct-q4_K_M` | 15-30 | ★★★★★ |
-| Apple M (64-192 GB) | M Ultra | `qwen2.5:72b-instruct-q4_K_M` | `qwen2.5:14b-instruct-q4_K_M` | 10-25 | ★★★★★ |
-
-> Speed is tokens/second for generation. Quality is relative — even ★★☆ is sufficient for summarisation and extraction.
+Everything runs through CLI or the built-in `local_config` GUI. No config file editing required.
 
 ---
 
-## Prerequisites
+## Quick install (5 commands)
+
+```bash
+# 1. Pull models for your hardware (see tier table below — Tier E shown)
+ollama pull qwen2.5:14b-instruct-q4_K_M
+ollama pull qwen2.5:3b
+
+# 2. Register with Claude Code — models set inline, nothing to edit
+claude mcp add localthink \
+  --env OLLAMA_MODEL="qwen2.5:14b-instruct-q4_K_M" \
+  --env OLLAMA_FAST_MODEL="qwen2.5:3b" \
+  --env OLLAMA_TINY_MODEL="qwen2.5:3b" \
+  -- uvx localthink-mcp
+
+# 3. Set your CLAUDE.md instruction tier
+cp -r claude-md/ ~/.claude/localthink/
+python ~/.claude/localthink/set-tier.py full
+
+# 4. Verify
+claude mcp list   # localthink → Connected
+```
+
+**Windows:**
+```bash
+claude mcp add --transport stdio localthink ^
+  --env OLLAMA_MODEL="qwen2.5:14b-instruct-q4_K_M" ^
+  --env OLLAMA_FAST_MODEL="qwen2.5:3b" ^
+  --env OLLAMA_TINY_MODEL="qwen2.5:3b" ^
+  -- cmd /c uvx localthink-mcp
+
+xcopy claude-md\* %USERPROFILE%\.claude\localthink\ /E /I /Y
+python %USERPROFILE%\.claude\localthink\set-tier.py full
+```
+
+Substitute models for your hardware using the tier table below. Fine-tune everything else with `local_config` — no file editing needed.
+
+---
+
+## Hardware tier table
+
+| Tier | Hardware | MAIN model | FAST model | TINY model | Speed (tok/s) |
+|------|----------|-----------|------------|------------|---------------|
+| A | CPU · 16 GB RAM | `qwen2.5:7b-instruct-q4_K_M` | `qwen2.5:1.5b` | `qwen2.5:1.5b` | 3-8 |
+| A+ | CPU · 32 GB RAM | `qwen2.5:14b-instruct-q4_K_M` | `qwen2.5:3b` | `qwen2.5:3b` | 2-5 |
+| B | 4 GB VRAM | `qwen2.5:7b-instruct-q4_K_M` | `qwen2.5:1.5b` | `qwen2.5:1.5b` | 20-40 |
+| C | 6 GB VRAM | `qwen2.5:7b-instruct-q6_K` | `qwen2.5:3b` | `qwen2.5:3b` | 25-45 |
+| D | 8 GB VRAM | `qwen2.5:7b-instruct-q8_0` | `qwen2.5:3b` | `qwen2.5:3b` | 30-55 |
+| E | 10-12 GB VRAM | `qwen2.5:14b-instruct-q4_K_M` | `qwen2.5:3b` | `qwen2.5:3b` | 20-40 |
+| F | 16-20 GB VRAM | `qwen2.5:14b-instruct-q8_0` | `qwen2.5:7b-instruct-q4_K_M` | `qwen2.5:3b` | 20-35 |
+| G | 24 GB VRAM | `qwen2.5:32b-instruct-q4_K_M` | `qwen2.5:7b-instruct-q4_K_M` | `qwen2.5:3b` | 15-30 |
+| H | 48 GB+ VRAM | `qwen2.5:72b-instruct-q4_K_M` | `qwen2.5:14b-instruct-q4_K_M` | `qwen2.5:3b` | 8-18 |
+| Apple M · 8 GB | M1/M2/M3 base | `qwen2.5:7b-instruct-q4_K_M` | `qwen2.5:1.5b` | `qwen2.5:1.5b` | 15-30 |
+| Apple M · 16-24 GB | M Pro | `qwen2.5:14b-instruct-q4_K_M` | `qwen2.5:3b` | `qwen2.5:3b` | 20-45 |
+| Apple M · 32-40 GB | M Max | `qwen2.5:32b-instruct-q4_K_M` | `qwen2.5:7b-instruct-q4_K_M` | `qwen2.5:3b` | 15-30 |
+| Apple M · 64+ GB | M Ultra | `qwen2.5:72b-instruct-q4_K_M` | `qwen2.5:14b-instruct-q4_K_M` | `qwen2.5:3b` | 10-25 |
+
+> **Three model tiers explained:**
+> - **MAIN** — all deep operations: summarize, answer, find_impl, pipeline, audit
+> - **FAST** — lightweight ops: classify, outline, symbols, code_surface, translate, schema_infer
+> - **TINY** — instant yes/no: gate, route decisions, hallucination check
+
+---
+
+## Step-by-step
 
 ### 1. Install Ollama
 
-**Windows / macOS:**
-Download from [ollama.ai](https://ollama.ai) and run the installer.
+**Windows / macOS:** Download and run the installer from [ollama.ai](https://ollama.ai).
 
 **Linux:**
 ```bash
@@ -40,467 +80,296 @@ curl -fsSL https://ollama.ai/install.sh | sh
 
 Verify:
 ```bash
-ollama serve        # start the server (runs in background on Windows/macOS automatically)
-curl http://localhost:11434/api/tags   # should return {"models":[...]}
+ollama serve
+curl http://localhost:11434/api/tags   # {"models":[...]}
 ```
 
-### 2. GPU driver prerequisites
+### 2. GPU prerequisites
 
-| GPU brand | What you need |
-|-----------|--------------|
-| NVIDIA | CUDA 11.8+ driver. Download from nvidia.com. Verify: `nvidia-smi` |
-| AMD (Linux) | ROCm 5.7+. `sudo apt install rocm-hip-sdk`. Verify: `rocm-smi` |
-| AMD (Windows) | Ollama uses DirectML automatically — no extra setup |
-| Intel Arc | DirectML on Windows — automatic. Linux: limited, use CPU mode |
-| Apple Silicon | Metal — automatic, nothing to install |
-| CPU only | Nothing extra needed |
+| GPU | What you need |
+|-----|--------------|
+| NVIDIA | CUDA 11.8+ driver — `nvidia-smi` to verify |
+| AMD (Linux) | ROCm 5.7+ — `sudo apt install rocm-hip-sdk` |
+| AMD (Windows) | DirectML — automatic, nothing to install |
+| Apple Silicon | Metal — automatic |
+| CPU only | Nothing extra |
+
+### 3. Pull models for your tier
+
+Find your tier in the table above and run one `ollama pull` per model:
+
+```bash
+# Example: Tier E (10-12 GB VRAM)
+ollama pull qwen2.5:14b-instruct-q4_K_M   # MAIN
+ollama pull qwen2.5:3b                     # FAST + TINY
+```
+
+```bash
+# Example: Tier G (24 GB VRAM)
+ollama pull qwen2.5:32b-instruct-q4_K_M   # MAIN
+ollama pull qwen2.5:7b-instruct-q4_K_M    # FAST
+ollama pull qwen2.5:3b                     # TINY
+```
+
+### 4. Register with Claude Code
+
+Pass your three model names directly on the command line. No JSON editing.
+
+```bash
+# macOS / Linux
+claude mcp add localthink \
+  --env OLLAMA_MODEL="<MAIN model>" \
+  --env OLLAMA_FAST_MODEL="<FAST model>" \
+  --env OLLAMA_TINY_MODEL="<TINY model>" \
+  -- uvx localthink-mcp
+```
+
+```bash
+# Windows
+claude mcp add --transport stdio localthink ^
+  --env OLLAMA_MODEL="<MAIN model>" ^
+  --env OLLAMA_FAST_MODEL="<FAST model>" ^
+  --env OLLAMA_TINY_MODEL="<TINY model>" ^
+  -- cmd /c uvx localthink-mcp
+```
+
+**Changing models later?** Use the `local_config` GUI — no need to re-register.
+
+### 5. Set your CLAUDE.md instruction tier
+
+Copy the tier files to your Claude config folder, then pick a tier:
+
+```bash
+# macOS / Linux
+cp -r claude-md/ ~/.claude/localthink/
+python ~/.claude/localthink/set-tier.py full
+```
+
+```bash
+# Windows
+xcopy claude-md\* %USERPROFILE%\.claude\localthink\ /E /I /Y
+python %USERPROFILE%\.claude\localthink\set-tier.py full
+```
+
+| Tier | Lines injected | Tools available | Best for |
+|------|----------------|-----------------|----------|
+| `full` | ~55 | All 45 | Complex projects, new codebases |
+| `half` | ~30 | ~18 | Daily dev: file nav + CI filters |
+| `quarter` | ~12 | ~6 | Minimal — just stop big-file loads |
+
+Switch at any time:
+```bash
+python ~/.claude/localthink/set-tier.py half
+python ~/.claude/localthink/set-tier.py        # show current
+```
+
+### 6. Verify
+
+```bash
+claude mcp list        # localthink → Connected
+# Then in Claude Code:
+# local_models()       # shows MAIN / FAST / TINY tiers + Ollama health
+```
 
 ---
 
-## Tier A — CPU only (16 GB RAM)
+## Per-tier install commands
 
-**Typical hardware:** Any laptop/desktop without a discrete GPU, or with an iGPU.
-
-This tier is slow but functional. Use for batch overnight jobs, not interactive work.
-
+### Tier A — CPU · 16 GB RAM
 ```bash
 ollama pull qwen2.5:7b-instruct-q4_K_M
 ollama pull qwen2.5:1.5b
+
+claude mcp add localthink \
+  --env OLLAMA_MODEL="qwen2.5:7b-instruct-q4_K_M" \
+  --env OLLAMA_FAST_MODEL="qwen2.5:1.5b" \
+  --env OLLAMA_TINY_MODEL="qwen2.5:1.5b" \
+  -- uvx localthink-mcp
 ```
+*Tip: Set `LOCALTHINK_MAX_CONCURRENCY=1` in local_config → Limits if RAM is tight.*
 
-**Configuration:**
-```json
-{
-  "mcpServers": {
-    "localthink": {
-      "env": {
-        "OLLAMA_MODEL": "qwen2.5:7b-instruct-q4_K_M",
-        "OLLAMA_FAST_MODEL": "qwen2.5:1.5b"
-      }
-    }
-  }
-}
-```
-
-**Tips:**
-- Set `OLLAMA_NUM_PARALLEL=1` to avoid OOM if RAM is tight.
-- Use `local_answer` and `local_extract` (targeted) rather than `local_summarize` (full pass) to minimise generation length.
-- If 8 GB RAM: use `qwen2.5:3b` for both models instead. The 7B will likely cause swapping.
-
----
-
-## Tier A+ — CPU only (32 GB RAM)
-
-The 14B fits entirely in RAM. Noticeably better quality for complex summarisation.
-
+### Tier A+ — CPU · 32 GB RAM
 ```bash
 ollama pull qwen2.5:14b-instruct-q4_K_M
 ollama pull qwen2.5:3b
+
+claude mcp add localthink \
+  --env OLLAMA_MODEL="qwen2.5:14b-instruct-q4_K_M" \
+  --env OLLAMA_FAST_MODEL="qwen2.5:3b" \
+  --env OLLAMA_TINY_MODEL="qwen2.5:3b" \
+  -- uvx localthink-mcp
 ```
 
-**Configuration:**
-```json
-{
-  "mcpServers": {
-    "localthink": {
-      "env": {
-        "OLLAMA_MODEL": "qwen2.5:14b-instruct-q4_K_M",
-        "OLLAMA_FAST_MODEL": "qwen2.5:3b"
-      }
-    }
-  }
-}
-```
-
----
-
-## Tier B — 4 GB VRAM
-
-**Typical hardware:** GTX 1050 Ti, GTX 1650, RX 570/580, Intel Arc A380
-
-The 7B Q4 model fits within 4 GB VRAM (needs ~4.7 GB peak — Ollama will offload a few layers to RAM if tight, which is fine with 16 GB+ system RAM).
-
+### Tier B — 4 GB VRAM (GTX 1650, RX 580)
 ```bash
 ollama pull qwen2.5:7b-instruct-q4_K_M
 ollama pull qwen2.5:1.5b
+
+claude mcp add localthink \
+  --env OLLAMA_MODEL="qwen2.5:7b-instruct-q4_K_M" \
+  --env OLLAMA_FAST_MODEL="qwen2.5:1.5b" \
+  --env OLLAMA_TINY_MODEL="qwen2.5:1.5b" \
+  -- uvx localthink-mcp
 ```
+*The 7B Q4 needs ~4.7 GB peak — Ollama offloads a few layers to RAM if tight, which is fine with 16 GB+ system RAM.*
 
-**Configuration:**
-```json
-{
-  "mcpServers": {
-    "localthink": {
-      "env": {
-        "OLLAMA_MODEL": "qwen2.5:7b-instruct-q4_K_M",
-        "OLLAMA_FAST_MODEL": "qwen2.5:1.5b"
-      }
-    }
-  }
-}
-```
-
-**Tip:** If Ollama reports OOM, force the model smaller:
-```bash
-OLLAMA_MODEL=qwen2.5:3b-instruct claude
-```
-
----
-
-## Tier C — 6 GB VRAM
-
-**Typical hardware:** GTX 1060 6GB, GTX 1660, RX 5600 XT, RTX 2060
-
-The 7B fits comfortably. Step up to Q6_K quantisation for meaningfully better quality at the same model size.
-
+### Tier C — 6 GB VRAM (GTX 1660, RTX 2060)
 ```bash
 ollama pull qwen2.5:7b-instruct-q6_K
 ollama pull qwen2.5:3b
+
+claude mcp add localthink \
+  --env OLLAMA_MODEL="qwen2.5:7b-instruct-q6_K" \
+  --env OLLAMA_FAST_MODEL="qwen2.5:3b" \
+  --env OLLAMA_TINY_MODEL="qwen2.5:3b" \
+  -- uvx localthink-mcp
 ```
 
-**Configuration:**
-```json
-{
-  "mcpServers": {
-    "localthink": {
-      "env": {
-        "OLLAMA_MODEL": "qwen2.5:7b-instruct-q6_K",
-        "OLLAMA_FAST_MODEL": "qwen2.5:3b"
-      }
-    }
-  }
-}
-```
-
-**Alternative fast model:** `phi3.5:3.8b` — Microsoft's Phi-3.5, exceptional reasoning for 3.8B parameters. Good if you run many classification/outline jobs.
-```bash
-ollama pull phi3.5:3.8b
-```
-
----
-
-## Tier D — 8 GB VRAM
-
-**Typical hardware:** RTX 2070/2080, RTX 3070, RX 6700 XT, RX 6800, RTX 4060 Ti
-
-Sweet spot: Q8_0 of the 7B is near-lossless quality and fits in 8 GB (~7.7 GB). This gives you the same model as larger tiers just without quantization degradation.
-
+### Tier D — 8 GB VRAM (RTX 3070, RX 6700 XT)
 ```bash
 ollama pull qwen2.5:7b-instruct-q8_0
 ollama pull qwen2.5:3b
+
+claude mcp add localthink \
+  --env OLLAMA_MODEL="qwen2.5:7b-instruct-q8_0" \
+  --env OLLAMA_FAST_MODEL="qwen2.5:3b" \
+  --env OLLAMA_TINY_MODEL="qwen2.5:3b" \
+  -- uvx localthink-mcp
 ```
+*Q8_0 is near-lossless quality at 7B — the sweet spot for this VRAM tier.*
 
-**Configuration:**
-```json
-{
-  "mcpServers": {
-    "localthink": {
-      "env": {
-        "OLLAMA_MODEL": "qwen2.5:7b-instruct-q8_0",
-        "OLLAMA_FAST_MODEL": "qwen2.5:3b"
-      }
-    }
-  }
-}
-```
-
-**Alternative:** Want a bigger model at lower quality? `qwen2.5:14b-instruct-q3_K_M` (~6.5 GB) fits and gives 14B reasoning at Q3 quality. Better for complex summarisation, worse for code structure tasks.
-```bash
-ollama pull qwen2.5:14b-instruct-q3_K_M
-```
-
----
-
-## Tier E — 10-12 GB VRAM
-
-**Typical hardware:** RTX 2080 Ti, RTX 3080 10GB, RTX 3080 12GB, RTX 4070, RX 6900 XT
-
-The 14B Q4 fits (~9 GB). This is the first tier with a clear quality jump over the 7B for complex reasoning, multi-section summarisation, and code analysis.
-
+### Tier E — 10-12 GB VRAM (RTX 3080, RTX 4070)
 ```bash
 ollama pull qwen2.5:14b-instruct-q4_K_M
 ollama pull qwen2.5:3b
+
+claude mcp add localthink \
+  --env OLLAMA_MODEL="qwen2.5:14b-instruct-q4_K_M" \
+  --env OLLAMA_FAST_MODEL="qwen2.5:3b" \
+  --env OLLAMA_TINY_MODEL="qwen2.5:3b" \
+  -- uvx localthink-mcp
 ```
+*Optional upgrade: pull `qwen2.5:7b-instruct-q4_K_M` and set it as FAST in local_config for better classify/outline quality.*
 
-**Configuration:**
-```json
-{
-  "mcpServers": {
-    "localthink": {
-      "env": {
-        "OLLAMA_MODEL": "qwen2.5:14b-instruct-q4_K_M",
-        "OLLAMA_FAST_MODEL": "qwen2.5:3b"
-      }
-    }
-  }
-}
-```
-
-**Fast model upgrade:** With 12 GB to spare, you can afford a faster FAST model:
-```bash
-ollama pull qwen2.5:7b-instruct-q4_K_M   # use as FAST_MODEL for higher-quality classify/outline
-```
-
----
-
-## Tier F — 16-20 GB VRAM
-
-**Typical hardware:** RTX 3090 (24GB but often paired, useful at 16 GB), RTX 4080, RTX 4080 Super, Tesla T4, Quadro RTX 5000
-
-Use Q8_0 of the 14B (near-lossless, ~13.5 GB) or step up to 32B Q3 (~14 GB).
-
+### Tier F — 16-20 GB VRAM (RTX 4080, A5000)
 ```bash
 ollama pull qwen2.5:14b-instruct-q8_0
 ollama pull qwen2.5:7b-instruct-q4_K_M
+ollama pull qwen2.5:3b
+
+claude mcp add localthink \
+  --env OLLAMA_MODEL="qwen2.5:14b-instruct-q8_0" \
+  --env OLLAMA_FAST_MODEL="qwen2.5:7b-instruct-q4_K_M" \
+  --env OLLAMA_TINY_MODEL="qwen2.5:3b" \
+  -- uvx localthink-mcp
 ```
 
-**Configuration:**
-```json
-{
-  "mcpServers": {
-    "localthink": {
-      "env": {
-        "OLLAMA_MODEL": "qwen2.5:14b-instruct-q8_0",
-        "OLLAMA_FAST_MODEL": "qwen2.5:7b-instruct-q4_K_M"
-      }
-    }
-  }
-}
-```
-
-**Alternative:** `qwen2.5:32b-instruct-q3_K_M` (~14 GB) — 32B model at Q3. Better for long-document summarisation, slightly worse for precise extraction than 14B Q8.
-
----
-
-## Tier G — 24 GB VRAM
-
-**Typical hardware:** RTX 3090, RTX 3090 Ti, RTX 4090, A5000, Titan RTX
-
-The 32B Q4 fits comfortably (~19 GB). This is a significant quality jump for complex analysis, multi-document tasks, and code understanding.
-
+### Tier G — 24 GB VRAM (RTX 3090, RTX 4090)
 ```bash
 ollama pull qwen2.5:32b-instruct-q4_K_M
 ollama pull qwen2.5:7b-instruct-q4_K_M
+ollama pull qwen2.5:3b
+
+claude mcp add localthink \
+  --env OLLAMA_MODEL="qwen2.5:32b-instruct-q4_K_M" \
+  --env OLLAMA_FAST_MODEL="qwen2.5:7b-instruct-q4_K_M" \
+  --env OLLAMA_TINY_MODEL="qwen2.5:3b" \
+  -- uvx localthink-mcp
 ```
 
-**Configuration:**
-```json
-{
-  "mcpServers": {
-    "localthink": {
-      "env": {
-        "OLLAMA_MODEL": "qwen2.5:32b-instruct-q4_K_M",
-        "OLLAMA_FAST_MODEL": "qwen2.5:7b-instruct-q4_K_M"
-      }
-    }
-  }
-}
-```
-
-**Alternative fast model:** `qwen2.5:7b-instruct-q8_0` for near-lossless fast operations.
-
----
-
-## Tier H — 48 GB+ VRAM
-
-**Typical hardware:** Dual RTX 3090/4090 (NVLink), A100 40/80 GB, H100, L40, Quadro RTX 8000
-
-The 72B Q4 fits (~43 GB). This delivers GPT-4-class performance locally. Recommended for deep code analysis, complex multi-document summarisation, and session compression of long technical conversations.
-
+### Tier H — 48 GB+ VRAM (A100, H100, dual 4090)
 ```bash
 ollama pull qwen2.5:72b-instruct-q4_K_M
-ollama pull qwen2.5:14b-instruct-q4_K_M
-```
-
-**Configuration:**
-```json
-{
-  "mcpServers": {
-    "localthink": {
-      "env": {
-        "OLLAMA_MODEL": "qwen2.5:72b-instruct-q4_K_M",
-        "OLLAMA_FAST_MODEL": "qwen2.5:14b-instruct-q4_K_M"
-      }
-    }
-  }
-}
-```
-
-**For multi-GPU:** Ollama distributes layers across GPUs automatically. No extra config needed.
-
----
-
-## Apple Silicon
-
-Apple Silicon uses unified memory — the GPU and CPU share the same pool. This means "VRAM" is effectively your total RAM minus OS overhead (~3-4 GB for macOS). Ollama uses Metal automatically.
-
-**Memory bandwidth** on Apple Silicon is exceptionally high (200-800 GB/s), making it significantly faster than similarly-sized GPU tiers for the same model. A 16 GB M2 Pro often outperforms a 12 GB discrete GPU at inference.
-
-### M1 / M2 / M3 — 8 GB unified
-
-Effective model memory: ~4.5 GB. Treat as Tier B.
-
-```bash
-ollama pull qwen2.5:7b-instruct-q4_K_M
-ollama pull qwen2.5:1.5b
-```
-
-### M1 Pro / M2 Pro / M3 Pro — 16-36 GB unified
-
-16 GB: treat as Tier E. 32-36 GB: treat as Tier G.
-
-```bash
-# 16 GB:
 ollama pull qwen2.5:14b-instruct-q4_K_M
 ollama pull qwen2.5:3b
 
-# 32-36 GB:
-ollama pull qwen2.5:32b-instruct-q4_K_M
-ollama pull qwen2.5:7b-instruct-q4_K_M
+claude mcp add localthink \
+  --env OLLAMA_MODEL="qwen2.5:72b-instruct-q4_K_M" \
+  --env OLLAMA_FAST_MODEL="qwen2.5:14b-instruct-q4_K_M" \
+  --env OLLAMA_TINY_MODEL="qwen2.5:3b" \
+  -- uvx localthink-mcp
 ```
+*Multi-GPU: Ollama distributes layers automatically — no extra config.*
 
-### M1 Max / M2 Max / M3 Max — 32-96 GB unified
-
-32-40 GB: treat as Tier G. 64-96 GB: between Tier G and H.
+### Apple Silicon
 
 ```bash
-# 32-40 GB:
-ollama pull qwen2.5:32b-instruct-q4_K_M
-ollama pull qwen2.5:7b-instruct-q4_K_M
+# M1/M2/M3 — 8 GB
+ollama pull qwen2.5:7b-instruct-q4_K_M && ollama pull qwen2.5:1.5b
+claude mcp add localthink \
+  --env OLLAMA_MODEL="qwen2.5:7b-instruct-q4_K_M" \
+  --env OLLAMA_FAST_MODEL="qwen2.5:1.5b" \
+  --env OLLAMA_TINY_MODEL="qwen2.5:1.5b" \
+  -- uvx localthink-mcp
 
-# 64-96 GB:
-ollama pull qwen2.5:72b-instruct-q4_K_M
-ollama pull qwen2.5:14b-instruct-q4_K_M
-```
+# M Pro — 16-24 GB
+ollama pull qwen2.5:14b-instruct-q4_K_M && ollama pull qwen2.5:3b
+claude mcp add localthink \
+  --env OLLAMA_MODEL="qwen2.5:14b-instruct-q4_K_M" \
+  --env OLLAMA_FAST_MODEL="qwen2.5:3b" \
+  --env OLLAMA_TINY_MODEL="qwen2.5:3b" \
+  -- uvx localthink-mcp
 
-### M2 Ultra / M3 Ultra — 128-192 GB unified
+# M Max — 32-40 GB
+ollama pull qwen2.5:32b-instruct-q4_K_M && ollama pull qwen2.5:7b-instruct-q4_K_M && ollama pull qwen2.5:3b
+claude mcp add localthink \
+  --env OLLAMA_MODEL="qwen2.5:32b-instruct-q4_K_M" \
+  --env OLLAMA_FAST_MODEL="qwen2.5:7b-instruct-q4_K_M" \
+  --env OLLAMA_TINY_MODEL="qwen2.5:3b" \
+  -- uvx localthink-mcp
 
-Full 72B with room to spare. One of the best local inference platforms available.
-
-```bash
-ollama pull qwen2.5:72b-instruct-q8_0    # near-lossless 72B
-ollama pull qwen2.5:14b-instruct-q4_K_M
-```
-
-```json
-{
-  "mcpServers": {
-    "localthink": {
-      "env": {
-        "OLLAMA_MODEL": "qwen2.5:72b-instruct-q8_0",
-        "OLLAMA_FAST_MODEL": "qwen2.5:14b-instruct-q4_K_M"
-      }
-    }
-  }
-}
+# M Ultra — 64-192 GB
+ollama pull qwen2.5:72b-instruct-q4_K_M && ollama pull qwen2.5:14b-instruct-q4_K_M && ollama pull qwen2.5:3b
+claude mcp add localthink \
+  --env OLLAMA_MODEL="qwen2.5:72b-instruct-q4_K_M" \
+  --env OLLAMA_FAST_MODEL="qwen2.5:14b-instruct-q4_K_M" \
+  --env OLLAMA_TINY_MODEL="qwen2.5:3b" \
+  -- uvx localthink-mcp
 ```
 
 ---
 
-## Quantization guide
+## Configuring after install — local_config GUI
 
-| Quant | VRAM vs FP16 | Quality loss | Use when |
-|-------|-------------|--------------|----------|
-| `q2_K` | ~25% | High | Absolute minimum VRAM, acceptable for simple extraction |
-| `q3_K_M` | ~35% | Moderate | Need a bigger model in limited VRAM |
-| `q4_K_M` | ~50% | Low | **Default recommendation** — best balance |
-| `q5_K_M` | ~60% | Very low | Extra headroom for quality without full FP16 cost |
-| `q6_K` | ~75% | Minimal | When VRAM permits and quality matters |
-| `q8_0` | ~80% | Negligible | Near-lossless; use when VRAM comfortably fits |
-| FP16 (no quant) | 100% | None | Only if VRAM is abundant and you want absolute max |
-
-**Rule of thumb:** `q4_K_M` is the right default. Step up one level (`q6_K` or `q8_0`) only when the model fits comfortably. Never go below `q4_K_M` for the DEFAULT model — quality degrades noticeably for complex summarisation.
-
----
-
-## Using the Settings Editor
-
-Run this from Claude Code to open the GUI:
+All 18 settings are available in the GUI. Type this in Claude Code:
 
 ```
 local_config
 ```
 
-A desktop window opens with five tabs. Every configurable setting is exposed — no JSON editing required.
-
-**Tab overview:**
+A desktop window opens immediately — no terminal, no file editing.
 
 | Tab | What you configure |
 |-----|--------------------|
-| **Ollama** | Server URL and the three model tiers (default, fast, tiny) |
-| **Timeouts** | Per-tier response timeouts and the health-check probe |
-| **Limits** | File size cap, pipeline step cap, scan file cap, classify sample, concurrency |
-| **Cache** | Where results are stored on disk and how long they live |
-| **Memo** | Scratchpad and notes storage location, auto-compact threshold |
+| **Ollama** | Base URL · MAIN model · FAST model · TINY model |
+| **Timeouts** | Per-tier response timeouts · health check · code_surface timeout |
+| **Limits** | Max file bytes · pipeline steps · scan files · classify sample · concurrency |
+| **Cache** | Cache directory · TTL (days) |
+| **Memo** | Scratchpad directory · auto-compact threshold |
 
-**Status bar** — shows a live Ollama probe. Green dot = Ollama is running and reachable. Red dot = not reachable (run `ollama serve` to fix).
+**Key settings to tune for your hardware:**
 
-**Model dropdowns** — auto-filled with every model pulled on your machine. You can also type any model name directly.
+| Setting | Where | Low VRAM | High VRAM |
+|---------|--------|----------|-----------|
+| `LOCALTHINK_TIMEOUT` | Timeouts tab | `120` (7b fast) | `600` (32b+) |
+| `LOCALTHINK_MAX_CONCURRENCY` | Limits tab | `1–2` | `6–8` |
+| `LOCALTHINK_CACHE_TTL_DAYS` | Cache tab | `7` (tight disk) | `90` |
 
-**Directory fields** — Cache directory and Memo directory include a Browse button for folder selection.
-
-**Buttons:**
-
-| Button | Effect |
-|--------|--------|
-| **Save** | Writes `~/.localthink-mcp/config.json` and hot-reloads the server |
-| **Reset Tab** | Restores the current tab's fields to built-in defaults (unsaved) |
-| **Cancel** | Closes with no changes written |
-
-**Hot-reload vs restart:**
-
-Most settings take effect immediately after Save — no restart needed. The exceptions are the four Ollama settings (Base URL and the three model fields): these require reconnecting the MCP server after saving.
-
-To reconnect: open the MCP panel in Claude Code (`/mcp`) and reconnect localthink, or close and reopen Claude Code.
+**Save** writes `~/.localthink-mcp/config.json` and hot-reloads instantly. Timeout, limit, cache, and memo changes apply immediately. Model and URL changes require reconnecting the server (`/mcp` → reconnect in Claude Code).
 
 ---
 
-## Full configuration reference
+## Quantization reference
 
-All 18 settings, their env vars, defaults, and guidance. These can also be set manually as env vars under `mcpServers.localthink.env` in `.claude/settings.json` — env vars take priority over the config file.
+| Quant | VRAM vs FP16 | Quality | Use when |
+|-------|-------------|---------|----------|
+| `q3_K_M` | ~35% | Moderate | Need bigger model in tight VRAM |
+| `q4_K_M` | ~50% | Low loss | **Default — best balance** |
+| `q5_K_M` | ~60% | Very low | Extra headroom when VRAM permits |
+| `q6_K` | ~75% | Minimal | When VRAM comfortably fits |
+| `q8_0` | ~80% | Negligible | Near-lossless; use when fits easily |
 
-
-#### Ollama
-
-| Env var | Default | Notes |
-|---------|---------|-------|
-| `OLLAMA_BASE_URL` | `http://localhost:11434` | Change if Ollama runs on a different machine or port |
-| `OLLAMA_MODEL` | `qwen2.5:14b-instruct-q4_K_M` | See tier table above for the right value for your hardware |
-| `OLLAMA_FAST_MODEL` | *(same as MODEL)* | One tier smaller — classify, outline, translate, schema_infer |
-| `OLLAMA_TINY_MODEL` | *(same as FAST)* | Smallest available — trivial ops on small inputs |
-
-#### Timeouts (seconds)
-
-| Env var | Default | Notes |
-|---------|---------|-------|
-| `LOCALTHINK_TIMEOUT` | `360` | Raise to `600` for 32b+ models; lower to `120` for 7b on fast GPU |
-| `LOCALTHINK_FAST_TIMEOUT` | `180` | Fast model calls — `60`–`180` is right |
-| `LOCALTHINK_TINY_TIMEOUT` | `60` | Rarely needs changing |
-| `LOCALTHINK_HEALTH_TIMEOUT` | `2` | Ollama reachability ping — leave as-is |
-| `LOCALTHINK_CODE_SURFACE_TIMEOUT` | `600` | Raise to `900` for large TS/Go/Rust on slow hardware |
-
-#### Limits
-
-| Env var | Default | Notes |
-|---------|---------|-------|
-| `LOCALTHINK_MAX_FILE_BYTES` | `200000` | ~200 KB truncation cap per file read |
-| `LOCALTHINK_MAX_PIPELINE_STEPS` | `5` | Max steps in `local_pipeline` |
-| `LOCALTHINK_MAX_SCAN_FILES` | `20` | Max files per `local_scan_dir` call |
-| `LOCALTHINK_CLASSIFY_SAMPLE` | `8000` | Chars sampled for `local_classify` |
-| `LOCALTHINK_MAX_CONCURRENCY` | `4` | Parallel workers — `1`–`2` on low VRAM, `6`–`8` with headroom |
-
-#### Cache
-
-| Env var | Default | Notes |
-|---------|---------|-------|
-| `LOCALTHINK_CACHE_DIR` | `~/.cache/localthink-mcp` | Move to a different drive if space is tight |
-| `LOCALTHINK_CACHE_TTL_DAYS` | `30` | `7` if tight on disk · `90` for long-running projects |
-
-#### Memo / Notes
-
-| Env var | Default | Notes |
-|---------|---------|-------|
-| `LOCALTHINK_MEMO_DIR` | `~/.localthink-mcp` | Synced folder shares notes across machines |
-| `LOCALTHINK_COMPACT_THRESHOLD` | `3000` | Chars before a scratchpad section auto-compacts |
+Don't go below `q4_K_M` for the MAIN model — quality degrades for complex summarisation.
 
 ---
 
@@ -509,42 +378,33 @@ All 18 settings, their env vars, defaults, and guidance. These can also be set m
 **`[localthink] Ollama is not running`**
 ```bash
 ollama serve
-# or on macOS/Windows: check the system tray icon
+# Windows/macOS: check system tray icon
 ```
 
-**Model generates very slowly on GPU**
+**Slow inference on GPU**
 ```bash
-nvidia-smi   # check GPU utilization — should be 80-100% during inference
-# If low: Ollama may be in CPU fallback mode
-# Fix: ensure CUDA drivers are installed and up to date
+nvidia-smi   # GPU utilization should be 80-100% during inference
+# If low: install/update CUDA drivers
 ```
 
-**Out of memory / model fails to load**
+**Out of memory**
 ```bash
-# Option 1: use a smaller quantization
-ollama pull qwen2.5:7b-instruct-q4_K_M   # instead of q8_0
-
-# Option 2: reduce context size (Ollama default is 2048)
-# Add to your Modelfile or use OLLAMA_NUM_CTX env var
-
-# Option 3: close other GPU-heavy applications
+# Switch to smaller quantization
+ollama pull qwen2.5:7b-instruct-q4_K_M
+# Then update model in local_config GUI (Ollama tab → Save)
 ```
 
-**AMD GPU not detected on Windows**
-Ollama uses DirectML on Windows for AMD. It should auto-detect. If not:
-```powershell
-# Check device in Device Manager → Display adapters
-# Ensure Windows 10 2004+ / Windows 11
+**Change models without re-registering**
+```
+# In Claude Code:
+local_config   # Ollama tab → update model fields → Save → reconnect MCP
 ```
 
-**Slow on Apple Silicon despite large unified memory**
-```bash
-# Ensure you're running the native ARM64 build of Ollama
-file $(which ollama)   # should show: arm64
-```
+**AMD on Windows not detected**
+Ollama uses DirectML automatically on Windows 10 2004+ / Windows 11. Ensure drivers are current.
 
-**`local_code_surface` on Python returns wrong output**
-Python surface extraction uses the stdlib `ast` module with no Ollama involved. If results look wrong, the source file likely has a syntax error — check with:
+**`local_code_surface` wrong output on Python**
+Pure AST extraction — no Ollama involved. If wrong, check for a syntax error:
 ```bash
 python -m py_compile your_file.py
 ```

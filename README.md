@@ -14,15 +14,33 @@ Offloads large file queries and document processing to Ollama so they never burn
 ## Quick start
 
 ```bash
-# 1. Pull a model (once)
-ollama pull qwen2.5:14b-instruct-q4_K_M
+# 1. Pull models for your hardware (example: 10-12 GB VRAM)
+ollama pull qwen2.5:14b-instruct-q4_K_M   # MAIN — deep ops
+ollama pull qwen2.5:3b                     # FAST + TINY — lightweight/instant ops
 
-# 2. Register with Claude Code
-claude mcp add localthink -- uvx localthink-mcp
+# 2. Register with Claude Code — models set inline, no config editing
+claude mcp add localthink \
+  --env OLLAMA_MODEL="qwen2.5:14b-instruct-q4_K_M" \
+  --env OLLAMA_FAST_MODEL="qwen2.5:3b" \
+  --env OLLAMA_TINY_MODEL="qwen2.5:3b" \
+  -- uvx localthink-mcp
 
-# 3. Verify
+# Windows:
+# claude mcp add --transport stdio localthink ^
+#   --env OLLAMA_MODEL="qwen2.5:14b-instruct-q4_K_M" ^
+#   --env OLLAMA_FAST_MODEL="qwen2.5:3b" ^
+#   --env OLLAMA_TINY_MODEL="qwen2.5:3b" ^
+#   -- cmd /c uvx localthink-mcp
+
+# 3. Set your CLAUDE.md instruction tier
+cp -r claude-md/ ~/.claude/localthink/
+python ~/.claude/localthink/set-tier.py full
+
+# 4. Verify
 claude mcp list   # localthink → Connected
 ```
+
+See [SETUP.md](SETUP.md) for per-hardware pull commands across all tiers (CPU to 48 GB+ GPU). Fine-tune any setting live with `local_config` — no file editing.
 
 ---
 
@@ -37,20 +55,12 @@ Instead of pasting a 102-line monolith into `CLAUDE.md`, pick a tier:
 | `quarter` | ~12 | ~6 | Minimal — just stop Claude loading big files |
 
 ```bash
-# Copy the tier files once
-cp -r claude-md/ ~/.claude/localthink/
-
-# Set your tier (edits ~/.claude/CLAUDE.md in place)
-python ~/.claude/localthink/set-tier.py full
-
-# Switch at any time
-python ~/.claude/localthink/set-tier.py half
-
-# Check current tier
-python ~/.claude/localthink/set-tier.py
+python ~/.claude/localthink/set-tier.py full     # switch to full
+python ~/.claude/localthink/set-tier.py half     # switch to half
+python ~/.claude/localthink/set-tier.py          # show current tier
 ```
 
-See [`claude-md/`](claude-md/) for the tier files and [`CLAUDE_MD_TEMPLATE.md`](CLAUDE_MD_TEMPLATE.md) for full documentation.
+See [`claude-md/`](claude-md/) and [`CLAUDE_MD_TEMPLATE.md`](CLAUDE_MD_TEMPLATE.md) for full documentation.
 
 ---
 
